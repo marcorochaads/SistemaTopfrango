@@ -1,0 +1,115 @@
+/* Login.css */
+
+:root {
+  --vermelho-primario: #D32F2F;
+  --vermelho-hover: #B71C1C;
+  --cor-fundo: #f4f4f9;
+  --cor-cartao: #ffffff;
+  --cor-texto: #333333;
+  --borda-input: #ccc;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.container-login {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  background-color: var(--cor-fundo);
+}
+
+.cartao-login {
+  background-color: var(--cor-cartao);
+  padding: 2.5rem;
+  border-radius: 10px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  max-width: 400px;
+  text-align: center;
+}
+
+/* Área da Logo */
+.area-logo {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.espaco-logo {
+  width: 100px;
+  height: 100px;
+  background-color: #ffebee;
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  border: 2px solid var(--vermelho-primario);
+  color: var(--vermelho-primario);
+  font-weight: bold;
+  font-size: 0.8rem;
+  overflow: hidden;
+}
+
+.titulo-login {
+  color: var(--cor-texto);
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  border-bottom: 2px solid var(--vermelho-primario);
+  display: inline-block;
+  padding-bottom: 5px;
+}
+
+.grupo-input {
+  margin-bottom: 1.2rem;
+  text-align: left;
+}
+
+.grupo-input label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--cor-texto);
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.input-login {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--borda-input);
+  border-radius: 5px;
+  font-size: 1rem;
+  transition: border-color 0.3s;
+}
+
+.input-login:focus {
+  border-color: var(--vermelho-primario);
+  outline: none;
+}
+
+.botao-entrar {
+  width: 100%;
+  padding: 12px;
+  background-color: var(--vermelho-primario);
+  color: white;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 10px;
+  text-transform: uppercase;
+}
+
+.botao-entrar:hover {
+  background-color: var(--vermelho-hover);
+}
