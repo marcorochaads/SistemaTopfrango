@@ -1,130 +1,83 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './PDV.css';
-// Se os ícones derem erro, rode no terminal: npm install react-icons
-// Se preferir sem ícones, apague esta linha de importação abaixo:
-import { FaBoxOpen, FaRoute, FaCashRegister, FaChartLine, FaUserCircle } from 'react-icons/fa';
+import { FaChartLine, FaClipboardList, FaDollarSign, FaMapMarkerAlt, FaDesktop, FaUserCircle } from 'react-icons/fa';
 
-const PDV = () => {
-  // Dados simulados (Simulando o Banco de Dados)
-  const listaProdutos = [
-    { id: 1, nome: 'Frango Assado', preco: 35.00 },
-    { id: 2, nome: 'Frango Passarinho', preco: 28.00 },
-    { id: 3, nome: 'Batata Frita', preco: 15.00 },
-    { id: 4, nome: 'Farofa Especial', preco: 8.00 },
-    { id: 5, nome: 'Coca-Cola 2L', preco: 12.00 },
-    { id: 6, nome: 'Baião de Dois', preco: 10.00 },
-  ];
-
-  const [produtoSelecionado, setProdutoSelecionado] = useState(null);
-  const [qtd, setQtd] = useState(1);
-
-  // Função ao clicar no produto
-  const aoSelecionarProduto = (prod) => {
-    setProdutoSelecionado(prod);
-    setQtd(1); // Reseta a quantidade para 1
-  };
-
-  // Função para aumentar ou diminuir quantidade
-  const mudarQuantidade = (delta) => {
-    const novaQtd = qtd + delta;
-    if (novaQtd >= 1) setQtd(novaQtd);
-  };
-
-  // Calcula o total do item selecionado
-  const calcularTotal = () => {
-    if (!produtoSelecionado) return "0.00";
-    return (produtoSelecionado.preco * qtd).toFixed(2);
-  };
-
+const PDV = ({ irParaVendas }) => {
   return (
-    <div className="container-pdv">
-      {/* --- BARRA DE NAVEGAÇÃO (TOPO) --- */}
-      <header className="barra-navegacao">
-        <div className="nav-esquerda">
-          <div className="nav-logo">TOP FRANGO</div>
-          <div className="nav-usuario">
-            <FaUserCircle size={20} />
-            <span>ADMIN</span>
+    <div className="container-dashboard">
+      
+      {/* --- BARRA LATERAL (MENU) --- */}
+      <aside className="sidebar-menu">
+        
+        {/* Perfil do Usuário */}
+        <div className="perfil-usuario">
+          <FaUserCircle size={50} className="icone-usuario" />
+          <div className="texto-usuario">
+            <span className="cargo">ADMINISTRADOR</span>
+            <span className="nome">Renato</span>
           </div>
         </div>
 
-        <nav className="nav-menu">
-          <button className="item-nav"><FaChartLine /> RESULTADO</button>
-          <button className="item-nav"><FaBoxOpen /> PEDIDOS</button>
-          <button className="item-nav"><FaRoute /> ROTAS</button>
-          <button className="item-nav ativo"><FaCashRegister /> CAIXA</button>
+        {/* Menu de Botões (Agora mais para baixo) */}
+        <nav className="lista-botoes">
+          <button className="btn-menu destaque" onClick={irParaVendas}>
+            <div className="conteudo-btn">
+              <span>Vender</span>
+              <small>Novo Pedido</small>
+            </div>
+            <FaChartLine size={20} />
+          </button>
+
+          <button className="btn-menu">
+            <span>Pedidos</span>
+            <FaClipboardList size={20} />
+          </button>
+
+          <button className="btn-menu">
+            <span>Caixa</span>
+            <FaDollarSign size={20} />
+          </button>
+
+          <button className="btn-menu">
+            <span>Rotas</span>
+            <FaMapMarkerAlt size={20} />
+          </button>
+
+          <button className="btn-menu">
+            <span>Resultados</span>
+            <FaDesktop size={20} />
+          </button>
         </nav>
-      </header>
 
-      {/* --- CONTEÚDO PRINCIPAL --- */}
-      <main className="conteudo-pdv">
+        <div className="rodape-sidebar">
+          <span>v1.0.0</span>
+        </div>
+      </aside>
+
+      {/* --- ÁREA PRINCIPAL --- */}
+      <main className="area-principal">
         
-        {/* LADO ESQUERDO: Grade de Produtos */}
-        <section className="painel-esquerdo">
-          <div className="cabecalho-painel">CATÁLOGO DE PRODUTOS</div>
-          <div className="grade-produtos">
-            {listaProdutos.map((prod) => (
-              <div 
-                key={prod.id} 
-                className={`cartao-produto ${produtoSelecionado?.id === prod.id ? 'selecionado' : ''}`}
-                onClick={() => aoSelecionarProduto(prod)}
-              >
-                <div className="prod-nome">{prod.nome}</div>
-                <div className="prod-preco">R$ {prod.preco.toFixed(2)}</div>
-              </div>
-            ))}
-            {/* Espaços vazios visuais */}
-            <div className="cartao-produto vazio"></div>
-            <div className="cartao-produto vazio"></div>
+        <div className="conteudo-centro">
+          
+          {/* Texto de Boas Vindas */}
+          <div className="texto-boas-vindas">
+            <h2>Bem-vindo ao</h2>
+            <h1>SISTEMA TOPFRANGO</h1>
+            <p>Selecione uma opção no menu ao lado para começar.</p>
           </div>
-        </section>
 
-        {/* LADO DIREITO: Detalhes do Pedido */}
-        <section className="painel-direito">
-          <div className="formulario-pedido">
-            
-            <div className="grupo-form">
-              <label>PRODUTO SELECIONADO</label>
-              <div className="caixa-exibicao destaque">
-                {produtoSelecionado ? produtoSelecionado.nome : "Selecione um item..."}
-              </div>
-            </div>
-
-            <div className="grupo-form linha">
-              <div className="coluna-qtd">
-                <label>QUANTIDADE</label>
-                <div className="controle-qtd">
-                  <button onClick={() => mudarQuantidade(-1)}>-</button>
-                  <span>{qtd}</span>
-                  <button onClick={() => mudarQuantidade(1)}>+</button>
-                </div>
-              </div>
-            </div>
-
-            {/* Área de Resumo ou Lista */}
-            <div className="area-exibicao-grande">
-              <p>Itens do Pedido:</p>
-              {produtoSelecionado && (
-                <div className="item-lista">
-                  <span>{qtd}x {produtoSelecionado.nome}</span>
-                  <span>R$ {calcularTotal()}</span>
-                </div>
-              )}
-            </div>
-
-            <div className="grupo-form grupo-total">
-              <label>VALOR TOTAL</label>
-              <div className="exibicao-total">R$ {calcularTotal()}</div>
-            </div>
-
-            <div className="botoes-acao">
-              <button className="btn-cancelar" onClick={() => setProdutoSelecionado(null)}>CANCELAR</button>
-              <button className="btn-finalizar" onClick={() => alert('Venda Finalizada!')}>FINALIZAR</button>
+          {/* Área da Logo (Fica na direita) */}
+          <div className="area-logo-direita">
+            <div className="circulo-logo">
+              {/* Substitua pelo <img> quando tiver a imagem real */}
+              <span>LOGO</span>
             </div>
           </div>
-        </section>
+
+        </div>
 
       </main>
+
     </div>
   );
 };
