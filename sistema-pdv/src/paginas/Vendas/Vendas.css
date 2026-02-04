@@ -87,6 +87,13 @@
   cursor: pointer;
   transition: all 0.2s;
   box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  position: relative; 
+  min-height: 140px;
+}
+
+.icone-peso-kg {
+  font-size: 1.8rem;
+  margin-bottom: 10px;
 }
 
 .card-produto:hover {
@@ -315,5 +322,90 @@
 .btn-finalizar {
   background-color: var(--vermelho-topfrango);
   color: white;
+}
+
+/* Adicione ou atualize estas classes no seu Vendas.css */
+
+.badge-unidade {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: #eee;
+  color: #666;
+  font-size: 0.6rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+
+.card-produto {
+  position: relative; /* Para o badge funcionar */
+}
+
+/* Estilo para o campo de digitar o peso */
+.input-peso {
+  width: 70px;
+  padding: 5px;
+  border: 1px solid var(--vermelho-topfrango);
+  border-radius: 4px;
+  text-align: center;
+  font-weight: bold;
+  color: var(--vermelho-topfrango);
+  font-size: 0.9rem;
+}
+
+/* Remover setas do input number */
+.input-peso::-webkit-inner-spin-button,
+.input-peso::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.item-linha {
+  grid-template-columns: 2.5fr 2.5fr 1.5fr 0.5fr; /* Ajuste para caber o input */
+}
+
+.display-distancia {
+  background: #fff;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-weight: bold;
+  color: var(--vermelho-topfrango);
+}
+
+.tag-unidade {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  background: #f0f0f0;
+  font-size: 0.65rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: bold;
+  color: #666;
+}
+
+.input-peso-venda {
+  width: 75px;
+  padding: 5px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  text-align: center;
+  font-weight: bold;
+  color: var(--vermelho-topfrango);
+}
+
+.input-peso-venda:focus {
+  border-color: var(--vermelho-topfrango);
+  outline: none;
+  background-color: #fff5f5;
+}
+
+/* Esconde as setinhas padrões do input number */
+.input-peso-venda::-webkit-inner-spin-button,
+.input-peso-venda::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
 }
 .btn-finalizar:hover { background-color: var(--vermelho-hover); }

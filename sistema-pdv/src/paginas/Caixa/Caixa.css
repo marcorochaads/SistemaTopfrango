@@ -1,0 +1,152 @@
+.container-caixa {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+  border: 5px solid #D32F2F; /* Cor TopFrango */
+  box-sizing: border-box;
+  background-color: #F0F0F0;
+  font-family: 'Segoe UI', sans-serif;
+}
+
+.header-caixa {
+  background-color: white;
+  padding: 20px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+
+.header-info { display: flex; align-items: center; gap: 20px; }
+
+.btn-voltar-caixa {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: none;
+  border: 2px solid #D32F2F;
+  color: #D32F2F;
+  padding: 8px 15px;
+  border-radius: 20px;
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.btn-sangria {
+  background-color: #D32F2F;
+  color: white;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 1rem;
+}
+
+.area-caixa {
+  padding: 40px;
+  display: flex;
+  justify-content: center;
+}
+
+.card-resumo-caixa {
+  background: white;
+  width: 100%;
+  max-width: 700px;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  padding: 30px;
+}
+
+.titulo-resumo {
+  font-size: 1.4rem;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 25px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 10px;
+}
+
+.grid-valores {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.item-valor {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 1.1rem;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #555;
+}
+
+.valor-texto { font-weight: 600; color: #333; }
+
+.retirada { color: #D32F2F; }
+
+.total-liquido {
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.valor-destaque { color: #2E7D32; font-size: 2rem; }
+
+/* Modal Styles */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.modal-caixa {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  width: 400px;
+  text-align: center;
+}
+
+.modal-caixa input {
+  width: 100%;
+  padding: 12px;
+  margin: 20px 0;
+  font-size: 1.5rem;
+  text-align: center;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+}
+
+.modal-acoes {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-cancelar { flex: 1; padding: 12px; cursor: pointer; border: none; border-radius: 8px; }
+.btn-confirmar { 
+  flex: 1; 
+  padding: 12px; 
+  cursor: pointer; 
+  background: #D32F2F; 
+  color: white; 
+  border: none; 
+  border-radius: 8px;
+  font-weight: bold;
+}

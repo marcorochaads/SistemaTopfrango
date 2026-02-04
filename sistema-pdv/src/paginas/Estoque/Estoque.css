@@ -1,0 +1,236 @@
+.container-estoque {
+
+  display: flex;
+
+  flex-direction: column;
+
+  height: 100vh;
+
+  width: 100%;
+
+  border: 5px solid #D32F2F;
+
+  box-sizing: border-box;
+
+  background-color: #F0F0F0;
+
+  font-family: 'Segoe UI', sans-serif;
+
+}
+
+
+
+.header-estoque {
+
+  background-color: white;
+
+  padding: 20px 40px;
+
+  display: flex;
+
+  justify-content: space-between;
+
+  align-items: center;
+
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+
+}
+
+
+
+.header-info { display: flex; align-items: center; gap: 20px; }
+
+
+
+.btn-voltar-estoque {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  background: none;
+
+  border: 2px solid #D32F2F;
+
+  color: #D32F2F;
+
+  padding: 8px 15px;
+
+  border-radius: 20px;
+
+  font-weight: bold;
+
+  cursor: pointer;
+
+  transition: 0.2s;
+
+}
+
+.btn-voltar-estoque:hover { background: #D32F2F; color: white; }
+
+
+
+.area-estoque {
+
+  padding: 30px;
+
+  display: flex;
+
+  flex-direction: column;
+
+  gap: 30px;
+
+  flex: 1;
+
+  overflow-y: auto;
+
+}
+
+
+
+.card-formulario, .card-tabela {
+
+  background: white;
+
+  padding: 25px;
+
+  border-radius: 12px;
+
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+
+}
+
+
+
+h2 { color: #333; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; padding-bottom: 10px; }
+
+
+
+.grid-form {
+
+  display: grid;
+
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+
+  gap: 20px;
+
+  margin-bottom: 25px;
+
+}
+
+
+
+.nome-prod { grid-column: 1 / -1; }
+
+
+
+.campo-form label {
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 8px;
+
+  font-weight: 600;
+
+  color: #555;
+
+  margin-bottom: 8px;
+
+}
+
+
+
+.campo-form input[type="text"],
+
+.campo-form input[type="number"] {
+
+  width: 100%;
+
+  padding: 12px;
+
+  border: 2px solid #ddd;
+
+  border-radius: 8px;
+
+  font-size: 1rem;
+
+  box-sizing: border-box;
+
+}
+
+.campo-form input:focus { border-color: #D32F2F; outline: none; }
+
+
+
+/* Switch para KG */
+
+.checkbox-kg { display: flex; align-items: center; gap: 15px; height: 85px; }
+
+.switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+
+.switch input { opacity: 0; width: 0; height: 0; }
+
+.slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: .4s; border-radius: 24px; }
+
+.slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+
+input:checked + .slider { background-color: #D32F2F; }
+
+input:checked + .slider:before { transform: translateX(26px); }
+
+
+
+.btn-adicionar {
+
+  background-color: #D32F2F;
+
+  color: white;
+
+  border: none;
+
+  padding: 15px 30px;
+
+  border-radius: 8px;
+
+  font-weight: bold;
+
+  font-size: 1rem;
+
+  cursor: pointer;
+
+  display: flex;
+
+  align-items: center;
+
+  gap: 10px;
+
+  margin-left: auto;
+
+  transition: 0.2s;
+
+}
+
+.btn-adicionar:hover { background-color: #b71c1c; }
+
+
+
+/* Tabela */
+
+.tabela-container { overflow-x: auto; }
+
+.tabela-produtos { width: 100%; border-collapse: collapse; }
+
+.tabela-produtos th, .tabela-produtos td { text-align: left; padding: 15px; border-bottom: 1px solid #eee; }
+
+.tabela-produtos th { background-color: #f9f9f9; color: #666; }
+
+.btn-remover-prod { background: none; border: none; color: #999; cursor: pointer; transition: 0.2s; font-size: 1.1rem; }
+
+.btn-remover-prod:hover { color: #D32F2F; } 
+
+
+
