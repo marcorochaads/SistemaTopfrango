@@ -67,7 +67,7 @@ function App() {
     );
   }
 
-  // O RETURN FINAL: Aqui a mágica acontece
+
   return (
     <ConexaoContext.Provider value={{ setErroConexao }}>
       <div className="App">
