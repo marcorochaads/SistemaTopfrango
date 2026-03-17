@@ -10,10 +10,13 @@ import Estoque from './paginas/Estoque/Estoque';
 import Resultados from './paginas/Resultados/Resultados';
 import Rotas from './paginas/Rotas/Rotas'; 
 
+// 1. IMPORTAÇÃO DA NOVA TELA DE USUÁRIOS (Ajuste o caminho da pasta se você salvou diferente)
+import CadastroUsuario from './paginas/CadastroUsuario/CadastroUsuario'; 
+
 // Importando o componente de erro
 import AvisoServidor from './componentes/AvisoServidor/AvisoServidor';
 
-// 1. Criamos a "Central de Conexão" (Contexto)
+// Criamos a "Central de Conexão" (Contexto)
 export const ConexaoContext = createContext();
 
 function App() {
@@ -54,6 +57,11 @@ function App() {
     conteudo = <Resultados aoVoltar={() => setTelaAtual('menu')} />;
   } else if (telaAtual === 'rotas') {
     conteudo = <Rotas aoVoltar={() => setTelaAtual('menu')} listaPedidos={pedidos} />;
+  
+  // 2. ADICIONADO: CONDIÇÃO PARA A TELA DE USUÁRIOS
+  } else if (telaAtual === 'usuarios') {
+    conteudo = <CadastroUsuario aoVoltar={() => setTelaAtual('menu')} />;
+  
   } else {
     conteudo = (
       <PDV
@@ -63,10 +71,11 @@ function App() {
         irParaCaixa={() => setTelaAtual('caixa')}
         irParaResultados={() => setTelaAtual('resultados')}
         irParaRotas={() => setTelaAtual('rotas')}
+        // 3. ADICIONADO: PASSANDO A FUNÇÃO PRO PDV
+        irParaUsuarios={() => setTelaAtual('usuarios')} 
       />
     );
   }
-
 
   return (
     <ConexaoContext.Provider value={{ setErroConexao }}>

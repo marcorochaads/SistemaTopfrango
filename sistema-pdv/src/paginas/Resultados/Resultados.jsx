@@ -9,7 +9,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 const Resultados = ({ aoVoltar }) => {
   const [vendas, setVendas] = useState([]);
   const [sangrias, setSangrias] = useState([]);
-  const [filtro, setFiltro] = useState('dia'); // 'dia' ou 'mes'
+  const [filtro, setFiltro] = useState('dia'); 
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -47,9 +47,10 @@ const Resultados = ({ aoVoltar }) => {
   const totalLiquido = totalBruto - totalRetiradas;
 
   // Agrupamento para o Gráfico
-  const getTotalPorTipo = (tipo) => 
-    vendasFiltradas.filter(v => v.pagamento === tipo).reduce((acc, v) => acc + v.total, 0);
-
+ const getTotalPorTipo = (tipo) => 
+    vendasFiltradas
+      .filter(v => v.pagamento && v.pagamento.toLowerCase() === tipo.toLowerCase())
+      .reduce((acc, v) => acc + v.total, 0);
   const dadosGrafico = [
     { name: 'Pix', valor: getTotalPorTipo('Pix') },
     { name: 'Cartão', valor: getTotalPorTipo('Cartão') },

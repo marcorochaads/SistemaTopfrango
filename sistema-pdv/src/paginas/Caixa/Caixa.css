@@ -1,9 +1,9 @@
 .container-caixa {
   display: flex;
   flex-direction: column;
-  height: 100vh;
+  min-height: 100vh;
   width: 100%;
-  border: 5px solid #D32F2F; /* Cor TopFrango */
+  border: 5px solid #D32F2F; 
   box-sizing: border-box;
   background-color: #F0F0F0;
   font-family: 'Segoe UI', sans-serif;
@@ -33,120 +33,148 @@
   cursor: pointer;
 }
 
-.btn-sangria {
-  background-color: #D32F2F;
-  color: white;
+.botoes-caixa {
+  display: flex;
+  gap: 15px;
+}
+
+.btn-sangria, .btn-batimento {
   border: none;
-  padding: 12px 20px;
+  padding: 10px 18px;
   border-radius: 8px;
   font-weight: bold;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 10px;
-  font-size: 1rem;
+  gap: 8px;
+  color: white;
+  transition: opacity 0.2s;
 }
 
+.btn-sangria { background-color: #D32F2F; }
+.btn-batimento { background-color: #0277bd; }
+.btn-sangria:hover, .btn-batimento:hover { opacity: 0.9; }
+
+/* NOVO: Layout em Grid para os dois cards */
 .area-caixa {
-  padding: 40px;
-  display: flex;
-  justify-content: center;
-}
-
-.card-resumo-caixa {
-  background: white;
-  width: 100%;
-  max-width: 700px;
-  border-radius: 12px;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.1);
   padding: 30px;
 }
 
+.layout-caixa-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr; /* Lado esquerdo menor, direito maior */
+  gap: 25px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.card-resumo-caixa, .card-historico-caixa {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+  padding: 25px;
+  height: fit-content;
+}
+
 .titulo-resumo {
-  font-size: 1.4rem;
+  font-size: 1.2rem;
   font-weight: bold;
   color: #333;
-  margin-bottom: 25px;
+  margin-bottom: 20px;
   display: flex;
   align-items: center;
   gap: 10px;
-  border-bottom: 2px solid #eee;
+  border-bottom: 2px solid #f0f0f0;
   padding-bottom: 10px;
 }
 
-.grid-valores {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+/* TABELA DE HISTÓRICO */
+.tabela-batimentos {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
 }
 
-.item-valor {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 1.1rem;
+.tabela-batimentos th {
+  background-color: #f8f9fa;
+  color: #666;
+  text-align: left;
+  padding: 12px;
+  border-bottom: 2px solid #eee;
 }
 
-.label {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  color: #555;
+.tabela-batimentos td {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  color: #444;
 }
 
-.valor-texto { font-weight: 600; color: #333; }
+.sucesso-td { color: #2E7D32; font-weight: bold; }
+.erro-td { color: #D32F2F; font-weight: bold; }
 
-.retirada { color: #D32F2F; }
-
-.total-liquido {
-  font-size: 1.5rem;
-  font-weight: bold;
-}
-
-.valor-destaque { color: #2E7D32; font-size: 2rem; }
-
-/* Modal Styles */
+/* MODAL E INPUTS */
 .modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.7);
+  background: rgba(0,0,0,0.8);
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000;
+  z-index: 9999;
+  backdrop-filter: blur(4px);
 }
 
 .modal-caixa {
   background: white;
   padding: 30px;
   border-radius: 12px;
-  width: 400px;
-  text-align: center;
+  width: 450px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.select-turno {
+  width: 100%;
+  padding: 12px;
+  margin: 10px 0 20px 0;
+  border-radius: 8px;
+  border: 2px solid #ddd;
+  font-size: 1rem;
+  background-color: #fff;
 }
 
 .modal-caixa input {
   width: 100%;
-  padding: 12px;
-  margin: 20px 0;
-  font-size: 1.5rem;
+  padding: 15px;
+  margin-bottom: 15px;
+  font-size: 1.8rem;
   text-align: center;
-  border: 2px solid #ddd;
+  border: 2px solid #D32F2F;
   border-radius: 8px;
+  box-sizing: border-box;
 }
 
-.modal-acoes {
-  display: flex;
-  gap: 10px;
+.resultado-batimento {
+  background: #fdf2f2;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
 }
 
-.btn-cancelar { flex: 1; padding: 12px; cursor: pointer; border: none; border-radius: 8px; }
+.info-linha { display: flex; justify-content: space-between; margin-bottom: 8px; }
+.info-linha.sucesso strong { color: #2E7D32; }
+.info-linha.erro strong { color: #D32F2F; }
+
+.modal-acoes { display: flex; gap: 10px; }
+.btn-cancelar { flex: 1; padding: 12px; border: none; border-radius: 8px; cursor: pointer; }
 .btn-confirmar { 
-  flex: 1; 
-  padding: 12px; 
-  cursor: pointer; 
-  background: #D32F2F; 
-  color: white; 
-  border: none; 
-  border-radius: 8px;
-  font-weight: bold;
+  flex: 1; padding: 12px; cursor: pointer; 
+  background: #2E7D32; color: white; border: none; 
+  border-radius: 8px; font-weight: bold; 
+}
+
+/* Responsividade simples */
+@media (max-width: 1000px) {
+  .layout-caixa-grid {
+    grid-template-columns: 1fr;
+  }
 }

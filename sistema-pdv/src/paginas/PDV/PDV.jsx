@@ -1,9 +1,22 @@
 import React from 'react';
 import './PDV.css';
-import { FaChartLine, FaClipboardList, FaDollarSign, FaMapMarkerAlt, FaDesktop, FaUserCircle, FaBoxes } from 'react-icons/fa';
+// 1. Importação da imagem usando caminho relativo
+import logoTopFrango from '../../assets/imagens/logo-topfrango.png'; 
+import { 
+  FaChartLine, FaClipboardList, FaDollarSign, 
+  FaMapMarkerAlt, FaDesktop, FaUserCircle, FaBoxes, 
+  FaUserPlus
+} from 'react-icons/fa';
 
-// Adicionado irParaRotas aos parâmetros
-const PDV = ({ irParaVendas, irParaEstoque, irParaPedidos, irParaCaixa, irParaResultados, irParaRotas }) => {
+const PDV = ({ 
+  irParaVendas, 
+  irParaEstoque, 
+  irParaPedidos, 
+  irParaCaixa, 
+  irParaResultados, 
+  irParaRotas, 
+  irParaUsuarios 
+}) => {
   return (
     <div className="container-dashboard">
       
@@ -35,7 +48,6 @@ const PDV = ({ irParaVendas, irParaEstoque, irParaPedidos, irParaCaixa, irParaRe
             <FaDollarSign size={20} />
           </button>
 
-          {/* ATUALIZAÇÃO: Adicionado onClick para navegar para Rotas */}
           <button className="btn-menu" onClick={irParaRotas}>
             <span>Rotas</span>
             <FaMapMarkerAlt size={20} />
@@ -50,6 +62,11 @@ const PDV = ({ irParaVendas, irParaEstoque, irParaPedidos, irParaCaixa, irParaRe
             <span>Estoque</span>
             <FaBoxes size={20} />
           </button>
+
+          <button className="btn-menu" onClick={irParaUsuarios}>
+            <span>Usuários</span>
+            <FaUserPlus size={20} />
+          </button>
         </nav>
 
         <div className="rodape-sidebar">
@@ -61,13 +78,17 @@ const PDV = ({ irParaVendas, irParaEstoque, irParaPedidos, irParaCaixa, irParaRe
         <div className="conteudo-centro">
           <div className="texto-boas-vindas">
             <h2>Bem-vindo ao</h2>
-            <h1>SISTEMA TOPFRANGO</h1>
+            <h1>SISTEMA TOPFRANGOS</h1>
             <p>Selecione uma opção no menu ao lado para começar.</p>
           </div>
 
           <div className="area-logo-direita">
             <div className="circulo-logo">
-              <span>LOGO</span>
+              {/* 2. Uso da variável da imagem importada */}
+              <img 
+                src={logoTopFrango} 
+                alt="Logo TopFrango" 
+              />
             </div>
           </div>
         </div>

@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Estoque.css';
-import { FaArrowLeft, FaBoxes, FaPlus, FaTrash, FaWeightHanging, FaDollarSign, FaHashtag, FaTag, FaBalanceScale } from 'react-icons/fa';
-
+import { FaArrowLeft, FaBoxes, FaPlus, FaTrash, FaDollarSign, FaHashtag, FaTag, FaBalanceScale } from 'react-icons/fa';
 const Estoque = ({ aoVoltar }) => {
   const [nome, setNome] = useState('');
   const [valorCompra, setValorCompra] = useState('');
@@ -26,17 +25,50 @@ const Estoque = ({ aoVoltar }) => {
   }, []);
 
   const adicionarProduto = async () => {
-    if (!nome || !valorCompra || (isKG && !valorKG) || (!isKG && !valorVenda)) {
-      alert("Preencha os campos obrigatórios!");
+    // 1. Verifica se os campos estão preenchidos
+    if (!nome || !valorCompra || !quantidade || (isKG && !valorKG) || (!isKG && !valorVenda)) {
+      alert("Preencha todos os campos obrigatórios!");
       return;
     }
 
+    // 2. Converte as strings dos inputs para números decimais
+    const numCompra = parseFloat(valorCompra);
+    const numQtd = parseFloat(quantidade);
+    const numVenda = parseFloat(valorVenda);
+    const numKG = parseFloat(valorKG);
+
+    // 3. VALIDAÇÃO DE REGRA DE NEGÓCIO (RN02) - Impede valor 0, negativo ou irreal
+    if (numCompra < 0 || numQtd < 0) {
+      alert("Erro: A quantidade e o valor de compra não podem ser negativos!");
+      return;
+    }
+
+    if (isKG && numKG <= 0) {
+      alert("Erro: O valor do KG deve ser maior que zero!");
+      return;
+    }
+
+    if (!isKG && numVenda <= 0) {
+      alert("Erro: O preço de venda unitário deve ser maior que zero!");
+      return;
+    }
+
+    // 4. NOVA VALIDAÇÃO: Bloqueia venda com prejuízo (Preço Venda < Preço Compra)
+    if (!isKG) {
+      const custoUnitario = numCompra; // Descobre quanto custou cada unidade do lote
+      if (numVenda < custoUnitario) {
+        alert(`Erro: Prejuízo detetado! O custo de cada unidade neste lote foi de R$ ${custoUnitario.toFixed(2)}.\nO preço de venda (R$ ${numVenda.toFixed(2)}) não pode ser inferior ao preço de compra.`);
+        return;
+      }
+    }
+
+    // 5. Monta o objeto para enviar à base de dados
     const novoProduto = {
       nome,
-      qtd: parseFloat(quantidade) || 0,
-      vCompra: parseFloat(valorCompra),
-      vVenda: isKG ? 0 : parseFloat(valorVenda),
-      vKG: isKG ? parseFloat(valorKG) : 0,
+      qtd: numQtd,
+      vCompra: numCompra,
+      vVenda: isKG ? 0 : numVenda,
+      vKG: isKG ? numKG : 0,
       unidade: isKG ? 'kg' : 'un'
     };
 
@@ -50,9 +82,11 @@ const Estoque = ({ aoVoltar }) => {
       if (res.ok) {
         carregarProdutos();
         setNome(''); setValorCompra(''); setValorVenda(''); setQuantidade(''); setValorKG('');
+      } else {
+        alert("Erro ao guardar o produto na base de dados.");
       }
     } catch (error) {
-      alert("Erro ao salvar produto.");
+      alert("Erro ao conectar com o servidor.");
     }
   };
 
@@ -97,7 +131,7 @@ const Estoque = ({ aoVoltar }) => {
               <span>Vendido por KG?</span>
             </div>
 
-            {/* Lógica de Cadastro para KG */}
+            {/* Lógica de Cadastro para KG ou UNIDADE */}
             {isKG ? (
               <>
                 <div className="campo-form">
@@ -110,7 +144,6 @@ const Estoque = ({ aoVoltar }) => {
                 </div>
               </>
             ) : (
-              /* Lógica de Cadastro para UNIDADE */
               <>
                 <div className="campo-form">
                   <label><FaHashtag /> Quantidade (un):</label>

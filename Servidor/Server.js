@@ -19,7 +19,6 @@ const BACKUP_DIR = path.join(__dirname, 'backups');
 // ==========================================
 
 const realizarBackup = () => {
-    // Gera nome com data e hora para evitar conflitos se abrir o sistema várias vezes
     const agora = new Date();
     const dataFmt = agora.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
     const nomeArquivo = `backup-topfrango-${dataFmt}.sqlite`;
@@ -38,7 +37,6 @@ const realizarBackup = () => {
 const limparBackupsAntigos = () => {
     fs.readdir(BACKUP_DIR, (err, arquivos) => {
         if (err) return;
-        // Mantém apenas os últimos 7 arquivos para não lotar o HD
         if (arquivos.length > 7) {
             const arquivosOrdenados = arquivos.sort();
             fs.unlink(path.join(BACKUP_DIR, arquivosOrdenados[0]), (err) => {
@@ -83,7 +81,35 @@ const limparBackupsAntigos = () => {
             vKG REAL,
             unidade TEXT
         );
+        CREATE TABLE IF NOT EXISTS batimentos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            data TEXT,
+            turno TEXT,
+            valor_sistema REAL,
+            valor_fisico REAL,
+            pix REAL,
+            cartao REAL,
+            diferenca REAL,
+            status TEXT
+        );
+        -- NOVA TABELA: USUÁRIOS
+        CREATE TABLE IF NOT EXISTS usuarios (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            nome TEXT,
+            login TEXT UNIQUE,
+            senha TEXT,
+            nivel TEXT
+        );
     `);
+
+    // --- CRIANDO O PRIMEIRO USUÁRIO (ADMIN PADRÃO) ---
+    const qtdUsuarios = await db.get('SELECT COUNT(*) as count FROM usuarios');
+    if (qtdUsuarios.count === 0) {
+        console.log("⚠️ Nenhum usuário encontrado. Criando Administrador padrão...");
+        await db.run(
+            "INSERT INTO usuarios (nome, login, senha, nivel) VALUES ('Administrador', 'admin', 'admin123', 'admin')"
+        );
+    }
 
     if (!fs.existsSync(BACKUP_DIR)) {
         fs.mkdirSync(BACKUP_DIR);
@@ -91,14 +117,10 @@ const limparBackupsAntigos = () => {
 
     console.log("✅ Banco de Dados Pronto.");
 
-    // --- ESTRATÉGIA DE SEGURANÇA 1: BACKUP AO INICIAR ---
-    // Como a loja desliga o PC à noite, garantimos o backup assim que o sistema liga de manhã.
     console.log("🔄 Executando backup de segurança de inicialização...");
     realizarBackup();
 })();
 
-// --- ESTRATÉGIA DE SEGURANÇA 2: BACKUP ÀS 15:00 ---
-// Agenda para rodar todo dia às 3 da tarde, horário que a loja está certamente aberta.
 cron.schedule('0 15 * * *', () => {
     console.log("⏰ Horário agendado (15:00). Iniciando backup diário...");
     realizarBackup();
@@ -108,7 +130,6 @@ cron.schedule('0 15 * * *', () => {
 //             ROTAS DO SISTEMA
 // ==========================================
 
-// Rota para download manual
 app.get('/api/backup/download', (req, res) => {
     res.download(DB_NAME, 'backup-manual-topfrango.sqlite');
 });
@@ -188,6 +209,72 @@ app.post('/api/sangrias', async (req, res) => {
 app.get('/api/sangrias', async (req, res) => {
     const sangrias = await db.all('SELECT * FROM sangrias ORDER BY id DESC');
     res.json(sangrias);
+});
+
+// Batimentos
+app.post('/api/batimentos', async (req, res) => {
+    const { data, turno, valor_sistema, valor_fisico, pix, cartao, diferenca, status } = req.body;
+    try {
+        await db.run(
+            'INSERT INTO batimentos (data, turno, valor_sistema, valor_fisico, pix, cartao, diferenca, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+            [data, turno, valor_sistema, valor_fisico, pix, cartao, diferenca, status]
+        );
+        res.status(201).json({ message: "Batimento salvo com sucesso!" });
+    } catch (e) { 
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+app.get('/api/batimentos', async (req, res) => {
+    try {
+        const batimentos = await db.all('SELECT * FROM batimentos ORDER BY id DESC');
+        res.json(batimentos);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// ==========================================
+//          ROTAS DE USUÁRIOS
+// ==========================================
+
+app.post('/api/usuarios', async (req, res) => {
+    const { loginGerente, senhaGerente, novoNome, novoLogin, novaSenha, novoNivel } = req.body;
+
+    try {
+        // Verifica gerente
+        const gerente = await db.get(
+            'SELECT * FROM usuarios WHERE login = ? AND senha = ? AND nivel = ?', 
+            [loginGerente, senhaGerente, 'admin']
+        );
+
+        if (!gerente) {
+            return res.status(401).json({ error: "Autorização negada! Login ou senha do gerente incorretos." });
+        }
+
+        // Cadastra novo usuário
+        await db.run(
+            'INSERT INTO usuarios (nome, login, senha, nivel) VALUES (?, ?, ?, ?)',
+            [novoNome, novoLogin, novaSenha, novoNivel || 'caixa']
+        );
+
+        res.status(201).json({ message: "Usuário cadastrado com sucesso!" });
+
+    } catch (e) { 
+        if (e.message.includes('UNIQUE constraint failed')) {
+            return res.status(400).json({ error: "Esse login já está sendo usado." });
+        }
+        res.status(500).json({ error: e.message }); 
+    }
+});
+
+app.get('/api/usuarios', async (req, res) => {
+    try {
+        const usuarios = await db.all('SELECT id, nome, login, nivel FROM usuarios ORDER BY nome ASC');
+        res.json(usuarios);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.listen(5000, () => console.log("🚀 Servidor TopFrango rodando na porta 5000"));

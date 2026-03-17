@@ -1,18 +1,16 @@
 import React, { useState } from 'react';
 import './Login.css';
+// Importação da logo para garantir que apareça no build final
+import logoTopFrango from '../../assets/imagens/logo-topfrango.png';
 
-// 1. ADICIONEI "{ aoLogar }" AQUI DENTRO DOS PARÊNTESES
 const Login = ({ aoLogar }) => {
   const [usuario, setUsuario] = useState('');
   const [senha, setSenha] = useState('');
 
   const lidarComLogin = (e) => {
     e.preventDefault();
-    console.log('Tentativa de login:', { usuario, senha });
-    
-    // Aqui você validaria a senha no futuro...
-    
-    // 2. ADICIONEI ESSA LINHA PARA AVISAR O APP.JS PARA MUDAR A TELA
+    // Nota: No backend, esta senha será tratada como senhaHash conforme exigência técnica
+    console.log('Tentativa de login:', { usuario }); 
     aoLogar(); 
   };
 
@@ -22,11 +20,12 @@ const Login = ({ aoLogar }) => {
         
         <div className="area-logo">
           <div className="espaco-logo">
-            LOGO TopFrango
+            {/* Logo circular consistente com o restante do sistema */}
+            <img src={logoTopFrango} alt="Logo TopFrango" className="img-logo-login" />
           </div>
         </div>
 
-        <h2 className="titulo-login">LOGIN</h2>
+        <h2 className="titulo-login">SISTEMA TOPFRANGOS</h2>
 
         <form onSubmit={lidarComLogin}>
           <div className="grupo-input">
@@ -35,7 +34,7 @@ const Login = ({ aoLogar }) => {
               type="text"
               id="usuario"
               className="input-login"
-              placeholder="Digite seu usuário"
+              placeholder="Digite seu login"
               value={usuario}
               onChange={(e) => setUsuario(e.target.value)}
               required
@@ -59,6 +58,8 @@ const Login = ({ aoLogar }) => {
             ENTRAR
           </button>
         </form>
+        
+        <p className="nota-seguranca">Acesso restrito a funcionários autorizados</p>
       </div>
     </div>
   );

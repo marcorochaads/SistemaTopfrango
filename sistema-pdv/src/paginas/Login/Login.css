@@ -1,4 +1,4 @@
-/* Login.css */
+/* Login.css - Estilização do Portal de Acesso */
 
 :root {
   --vermelho-primario: #D32F2F;
@@ -7,6 +7,7 @@
   --cor-cartao: #ffffff;
   --cor-texto: #333333;
   --borda-input: #ccc;
+  --sombra-cartao: 0 10px 30px rgba(0, 0, 0, 0.1);
 }
 
 * {
@@ -22,50 +23,57 @@
   align-items: center;
   height: 100vh;
   background-color: var(--cor-fundo);
+  /* Adiciona um leve gradiente para parecer mais moderno */
+  background: linear-gradient(135deg, #f4f4f9 0%, #e0e0e0 100%);
 }
 
 .cartao-login {
   background-color: var(--cor-cartao);
   padding: 2.5rem;
-  border-radius: 10px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  box-shadow: var(--sombra-cartao);
   width: 100%;
   max-width: 400px;
   text-align: center;
+  border-top: 5px solid var(--vermelho-primario); /* Reforço da cor da marca */
 }
 
-/* Área da Logo */
+/* --- ÁREA DA LOGO (Ajuste Crítico) --- */
 .area-logo {
-  margin-bottom: 20px;
+  margin-bottom: 25px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
 .espaco-logo {
-  width: 100px;
-  height: 100px;
-  background-color: #ffebee;
+  width: 120px; /* Tamanho ideal para o login */
+  height: 120px;
+  background-color: var(--cor-cartao);
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
-  border: 2px solid var(--vermelho-primario);
-  color: var(--vermelho-primario);
-  font-weight: bold;
-  font-size: 0.8rem;
-  overflow: hidden;
+  border: 3px solid var(--vermelho-primario);
+  overflow: hidden; /* Garante que a imagem fique dentro do círculo */
+  box-shadow: 0 4px 12px rgba(211, 47, 47, 0.15);
 }
 
+/* Nova classe para a tag img dentro do login */
+.espaco-logo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Não deixa a logo esticar */
+}
+
+/* --- FORMULÁRIO --- */
 .titulo-login {
   color: var(--cor-texto);
-  margin-bottom: 1.5rem;
-  font-size: 1.5rem;
+  margin-bottom: 2rem;
+  font-size: 1.4rem;
   text-transform: uppercase;
   letter-spacing: 2px;
-  border-bottom: 2px solid var(--vermelho-primario);
-  display: inline-block;
-  padding-bottom: 5px;
+  font-weight: 800;
 }
 
 .grupo-input {
@@ -75,41 +83,53 @@
 
 .grupo-input label {
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 8px;
   color: var(--cor-texto);
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
 }
 
 .input-login {
   width: 100%;
-  padding: 12px;
-  border: 1px solid var(--borda-input);
-  border-radius: 5px;
+  padding: 14px; /* Mais espaço para facilitar o clique */
+  border: 1.5px solid var(--borda-input);
+  border-radius: 8px;
   font-size: 1rem;
-  transition: border-color 0.3s;
+  transition: all 0.3s ease;
+  background-color: #fafafa;
 }
 
 .input-login:focus {
   border-color: var(--vermelho-primario);
+  background-color: #fff;
+  box-shadow: 0 0 0 4px rgba(211, 47, 47, 0.1);
   outline: none;
 }
 
+/* --- BOTÃO --- */
 .botao-entrar {
   width: 100%;
-  padding: 12px;
+  padding: 14px;
   background-color: var(--vermelho-primario);
   color: white;
   border: none;
-  border-radius: 5px;
+  border-radius: 8px;
   font-size: 1rem;
   font-weight: bold;
   cursor: pointer;
-  transition: background-color 0.3s;
-  margin-top: 10px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  margin-top: 15px;
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .botao-entrar:hover {
   background-color: var(--vermelho-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(183, 28, 28, 0.3);
+}
+
+.botao-entrar:active {
+  transform: translateY(0);
 }
