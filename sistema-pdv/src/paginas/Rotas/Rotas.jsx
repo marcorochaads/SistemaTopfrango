@@ -5,7 +5,38 @@ import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 're
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import 'leaflet-routing-machine';
-import ModalPagamento from '../../componentes/ModalPagamento/ModalPagamento'; // Importando o modal
+import ModalPagamento from '../../componentes/ModalPagamento/ModalPagamento'; 
+
+// Importação do logo
+import logoTopFrango from '../../assets/imagens/logo-topfrango.png';
+
+// --- Configuração dos Ícones Personalizados ---
+
+// Ícone para a Sede (TopFrango)
+const iconeSede = L.icon({
+  iconUrl: logoTopFrango,
+  iconSize: [45, 45], 
+  iconAnchor: [22, 45], 
+  popupAnchor: [0, -45], 
+  className: 'icone-mapa-sede' 
+});
+
+// Ícone para o ponto de Chegada/Destino usando SVG puro (Pino Vermelho/Preto)
+const svgPin = `
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="35" height="45">
+    <path fill="rgba(0,0,0,0.3)" d="M192 480c-25.5 0-48.4-13.6-61.9-35L0 192C0 86 86 0 192 0s192 86 192 192L253.9 445c-13.5 21.4-36.4 35-61.9 35z" transform="translate(5, 5)"/>
+    <path fill="#D32F2F" d="M192 512c-25.5 0-48.4-13.6-61.9-35L0 192C0 86 86 0 192 0s192 86 192 192L253.9 477c-13.5 21.4-36.4 35-61.9 35z"/>
+    <circle cx="192" cy="192" r="80" fill="white" />
+  </svg>
+`;
+
+const iconeChegada = L.divIcon({
+  html: `<div class="icone-chegada-pin">${svgPin}</div>`,
+  className: 'icone-mapa-chegada',
+  iconSize: [35, 45],
+  iconAnchor: [17, 45], // Ajustado para a ponta do pino apontar para o local exato
+});
+
 
 // Componente de Controle de Rota
 const RoutingControl = ({ sede, destino, setDistancia }) => {
@@ -26,7 +57,7 @@ const RoutingControl = ({ sede, destino, setDistancia }) => {
       draggableWaypoints: false,
       fitSelectedRoutes: true,
       show: false, 
-      createMarker: () => null, 
+      createMarker: () => null, // Não cria marcadores padrão
     }).on('routesfound', (e) => {
       const routes = e.routes;
       const summary = routes[0].summary;
@@ -44,7 +75,7 @@ const Rotas = ({ aoVoltar }) => {
   const [pedidoSelecionado, setPedidoSelecionado] = useState(null);
   const [distancia, setDistancia] = useState('0.00');
   const [destino, setDestino] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false); // Estado do Modal
+  const [isModalOpen, setIsModalOpen] = useState(false); 
   
   const sedeTopFrango = [-4.853849, -39.577258]; 
 
@@ -68,7 +99,6 @@ const Rotas = ({ aoVoltar }) => {
     setPedidoSelecionado(encontrado);
   };
 
-  // --- FUNÇÃO PARA FINALIZAR A BAIXA PELAS ROTAS ---
   const finalizarBaixaRota = async (metodoPagamentoReal) => {
     try {
       const response = await fetch(`http://localhost:5000/api/vendas/${pedidoSelecionado.id}`, {
@@ -86,7 +116,7 @@ const Rotas = ({ aoVoltar }) => {
         setPedidoSelecionado(null);
         setDestino(null);
         setDistancia('0.00');
-        carregarPedidos(); // Atualiza a lista para sumir o pedido feito
+        carregarPedidos(); 
       }
     } catch (error) {
       alert("Erro ao conectar com o servidor.");
@@ -162,7 +192,7 @@ const Rotas = ({ aoVoltar }) => {
             <button 
               className="btn-tracar-rota" 
               disabled={!pedidoSelecionado || !destino}
-              onClick={() => setIsModalOpen(true)} // Abre o modal ao confirmar
+              onClick={() => setIsModalOpen(true)} 
             >
               <FaCheckDouble /> Confirmar e Receber
             </button>
@@ -172,15 +202,23 @@ const Rotas = ({ aoVoltar }) => {
             <MapContainer center={sedeTopFrango} zoom={16} className="mapa-leaflet">
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapEvents />
-              <Marker position={sedeTopFrango}><Popup>TopFrango</Popup></Marker>
-              {destino && <Marker position={destino}><Popup>Destino</Popup></Marker>}
+              
+              <Marker position={sedeTopFrango} icon={iconeSede}>
+                <Popup>TopFrango</Popup>
+              </Marker>
+              
+              {destino && (
+                <Marker position={destino} icon={iconeChegada}>
+                  <Popup>Destino</Popup>
+                </Marker>
+              )}
+              
               <RoutingControl sede={sedeTopFrango} destino={destino} setDistancia={setDistancia} />
             </MapContainer>
           </section>
         </div>
       </main>
 
-      {/* Modal de Pagamento integrado na Rota */}
       {pedidoSelecionado && (
         <ModalPagamento 
           isOpen={isModalOpen} 

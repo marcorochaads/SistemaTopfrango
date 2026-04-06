@@ -1,14 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import './Estoque.css';
-import { FaArrowLeft, FaBoxes, FaPlus, FaTrash, FaDollarSign, FaHashtag, FaTag, FaBalanceScale } from 'react-icons/fa';
+import { FaArrowLeft, FaBoxes, FaPlus, FaTrash, FaDollarSign, FaHashtag, FaTag, FaBalanceScale, FaPen } from 'react-icons/fa';
+
 const Estoque = ({ aoVoltar }) => {
+  // Estados do formulário de Adição
   const [nome, setNome] = useState('');
   const [valorCompra, setValorCompra] = useState('');
   const [valorVenda, setValorVenda] = useState('');
   const [quantidade, setQuantidade] = useState('');
   const [valorKG, setValorKG] = useState('');
   const [isKG, setIsKG] = useState(false);
+  
+  // Estado da Lista de Produtos
   const [produtos, setProdutos] = useState([]);
+
+  // Estados do Modal de Edição
+  const [modalEdicao, setModalEdicao] = useState(false);
+  const [prodEdit, setProdEdit] = useState(null);
 
   const carregarProdutos = async () => {
     try {
@@ -25,19 +33,16 @@ const Estoque = ({ aoVoltar }) => {
   }, []);
 
   const adicionarProduto = async () => {
-    // 1. Verifica se os campos estão preenchidos
     if (!nome || !valorCompra || !quantidade || (isKG && !valorKG) || (!isKG && !valorVenda)) {
       alert("Preencha todos os campos obrigatórios!");
       return;
     }
 
-    // 2. Converte as strings dos inputs para números decimais
     const numCompra = parseFloat(valorCompra);
     const numQtd = parseFloat(quantidade);
     const numVenda = parseFloat(valorVenda);
     const numKG = parseFloat(valorKG);
 
-    // 3. VALIDAÇÃO DE REGRA DE NEGÓCIO (RN02) - Impede valor 0, negativo ou irreal
     if (numCompra < 0 || numQtd < 0) {
       alert("Erro: A quantidade e o valor de compra não podem ser negativos!");
       return;
@@ -53,16 +58,11 @@ const Estoque = ({ aoVoltar }) => {
       return;
     }
 
-    // 4. NOVA VALIDAÇÃO: Bloqueia venda com prejuízo (Preço Venda < Preço Compra)
-    if (!isKG) {
-      const custoUnitario = numCompra; // Descobre quanto custou cada unidade do lote
-      if (numVenda < custoUnitario) {
-        alert(`Erro: Prejuízo detetado! O custo de cada unidade neste lote foi de R$ ${custoUnitario.toFixed(2)}.\nO preço de venda (R$ ${numVenda.toFixed(2)}) não pode ser inferior ao preço de compra.`);
-        return;
-      }
+    if (!isKG && numVenda < numCompra) {
+      alert(`Erro: Prejuízo detetado! O preço de venda não pode ser inferior ao preço de compra.`);
+      return;
     }
 
-    // 5. Monta o objeto para enviar à base de dados
     const novoProduto = {
       nome,
       qtd: numQtd,
@@ -80,6 +80,7 @@ const Estoque = ({ aoVoltar }) => {
       });
 
       if (res.ok) {
+        alert("Produto cadastrado com sucesso!"); // <-- AVISO DE SUCESSO AQUI
         carregarProdutos();
         setNome(''); setValorCompra(''); setValorVenda(''); setQuantidade(''); setValorKG('');
       } else {
@@ -97,6 +98,62 @@ const Estoque = ({ aoVoltar }) => {
     }
   };
 
+  // --- LÓGICA DE EDIÇÃO ---
+  const abrirModalEdicao = (produto) => {
+    setProdEdit({ ...produto }); // Faz uma cópia do produto selecionado
+    setModalEdicao(true);
+  };
+
+  const salvarEdicao = async () => {
+    if (!prodEdit.nome || prodEdit.qtd === '' || prodEdit.vCompra === '') {
+      alert("Preencha os campos obrigatórios para editar!");
+      return;
+    }
+
+    const numCompra = parseFloat(prodEdit.vCompra);
+    const numQtd = parseFloat(prodEdit.qtd);
+    const numVenda = parseFloat(prodEdit.vVenda);
+    const numKG = parseFloat(prodEdit.vKG);
+
+    if (numCompra < 0 || numQtd < 0) {
+      alert("Erro: Quantidade e compra não podem ser negativos!");
+      return;
+    }
+
+    // Validação de Prejuízo na edição
+    if (prodEdit.unidade === 'un' && numVenda < numCompra) {
+      alert("Erro: O novo preço de venda gerará prejuízo!");
+      return;
+    }
+
+    const produtoAtualizado = {
+      ...prodEdit,
+      qtd: numQtd,
+      vCompra: numCompra,
+      vVenda: prodEdit.unidade === 'un' ? numVenda : 0,
+      vKG: prodEdit.unidade === 'kg' ? numKG : 0
+    };
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/produtos/${prodEdit.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(produtoAtualizado)
+      });
+
+      if (res.ok) {
+        alert("Produto atualizado com sucesso!"); // <-- AVISO DE SUCESSO AQUI
+        carregarProdutos(); // Atualiza a tabela
+        setModalEdicao(false); // Fecha o modal
+        setProdEdit(null);
+      } else {
+        alert("Erro ao atualizar o produto.");
+      }
+    } catch (error) {
+      alert("Erro ao conectar com o servidor para editar.");
+    }
+  };
+
   return (
     <div className="container-estoque">
       <header className="header-estoque">
@@ -104,7 +161,7 @@ const Estoque = ({ aoVoltar }) => {
           <button className="btn-voltar-estoque" onClick={aoVoltar}>
             <FaArrowLeft /> Menu
           </button>
-          <h1>Cadastro de Estoque</h1>
+          <h1>Cadastro e Gestão de Estoque</h1>
         </div>
         <FaBoxes size={28} color="#D32F2F" />
       </header>
@@ -131,7 +188,6 @@ const Estoque = ({ aoVoltar }) => {
               <span>Vendido por KG?</span>
             </div>
 
-            {/* Lógica de Cadastro para KG ou UNIDADE */}
             {isKG ? (
               <>
                 <div className="campo-form">
@@ -170,19 +226,22 @@ const Estoque = ({ aoVoltar }) => {
                   <th>Nome</th>
                   <th>Em Estoque</th>
                   <th>Preço Venda</th>
-                  <th>Ações</th>
+                  <th style={{textAlign: 'center'}}>Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {produtos.map(prod => (
                   <tr key={prod.id}>
                     <td><strong>{prod.nome}</strong></td>
-                    <td style={{ color: prod.qtd < 5 ? 'red' : 'inherit', fontWeight: 'bold' }}>
+                    <td style={{ color: prod.qtd <= 5 ? '#D32F2F' : 'inherit', fontWeight: 'bold' }}>
                       {prod.qtd} {prod.unidade}
                     </td>
                     <td>{prod.unidade === 'kg' ? `R$ ${prod.vKG.toFixed(2)}/kg` : `R$ ${prod.vVenda.toFixed(2)}/un`}</td>
-                    <td>
-                      <button className="btn-remover-prod" onClick={() => removerProduto(prod.id)}>
+                    <td className="acoes-td">
+                      <button className="btn-acao-prod editar" onClick={() => abrirModalEdicao(prod)} title="Editar Produto">
+                        <FaPen />
+                      </button>
+                      <button className="btn-acao-prod remover" onClick={() => removerProduto(prod.id)} title="Excluir Produto">
                         <FaTrash />
                       </button>
                     </td>
@@ -193,6 +252,46 @@ const Estoque = ({ aoVoltar }) => {
           </div>
         </section>
       </main>
+
+      {/* --- MODAL DE EDIÇÃO --- */}
+      {modalEdicao && prodEdit && (
+        <div className="modal-overlay">
+          <div className="modal-edicao">
+            <h2>Editar: {prodEdit.nome}</h2>
+            <div className="grid-form modal-grid">
+              <div className="campo-form">
+                <label>Nome do Produto:</label>
+                <input type="text" value={prodEdit.nome} onChange={e => setProdEdit({...prodEdit, nome: e.target.value})} />
+              </div>
+              <div className="campo-form">
+                <label>Nova Quantidade ({prodEdit.unidade}):</label>
+                <input type="number" value={prodEdit.qtd} onChange={e => setProdEdit({...prodEdit, qtd: e.target.value})} />
+              </div>
+              <div className="campo-form">
+                <label>Custo de Compra Atual:</label>
+                <input type="number" value={prodEdit.vCompra} onChange={e => setProdEdit({...prodEdit, vCompra: e.target.value})} />
+              </div>
+              
+              {prodEdit.unidade === 'kg' ? (
+                <div className="campo-form">
+                  <label>Novo Valor do KG:</label>
+                  <input type="number" value={prodEdit.vKG} onChange={e => setProdEdit({...prodEdit, vKG: e.target.value})} />
+                </div>
+              ) : (
+                <div className="campo-form">
+                  <label>Novo Preço de Venda:</label>
+                  <input type="number" value={prodEdit.vVenda} onChange={e => setProdEdit({...prodEdit, vVenda: e.target.value})} />
+                </div>
+              )}
+            </div>
+            <div className="modal-acoes">
+              <button className="btn-cancelar" onClick={() => setModalEdicao(false)}>Cancelar</button>
+              <button className="btn-salvar-edicao" onClick={salvarEdicao}>Confirmar Alterações</button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };

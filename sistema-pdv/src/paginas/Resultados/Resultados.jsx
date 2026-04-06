@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './Resultados.css';
 import { 
   FaArrowLeft, FaArrowTrendUp, 
-  FaArrowTrendDown, FaWallet, FaReceipt, FaCalendarDay, FaCalendarDays 
+  FaArrowTrendDown, FaWallet, FaReceipt, FaCalendarDay, FaCalendarDays, FaList 
 } from 'react-icons/fa6';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
@@ -10,6 +10,13 @@ const Resultados = ({ aoVoltar }) => {
   const [vendas, setVendas] = useState([]);
   const [sangrias, setSangrias] = useState([]);
   const [filtro, setFiltro] = useState('dia'); 
+  
+  // Pega a data local de hoje e converte para o formato do input (YYYY-MM-DD)
+  const dataHojeBR = new Date().toLocaleDateString('pt-BR');
+  const [dia, mes, ano] = dataHojeBR.split('/');
+  const hojeISO = `${ano}-${mes}-${dia}`;
+  
+  const [dataSelecionada, setDataSelecionada] = useState(hojeISO);
 
   useEffect(() => {
     const carregarDados = async () => {
@@ -28,29 +35,61 @@ const Resultados = ({ aoVoltar }) => {
   }, []);
 
   // --- LÓGICA DE FILTRAGEM ---
-  const dataHoje = new Date().toLocaleDateString('pt-BR');
-  const mesAtual = dataHoje.slice(3); // Pega MM/YYYY
+  // Converte a data selecionada no calendário (YYYY-MM-DD) para o formato do banco (DD/MM/YYYY)
+  const formatarParaBR = (dataIso) => {
+    if (!dataIso) return "";
+    const [a, m, d] = dataIso.split('-');
+    return `${d}/${m}/${a}`;
+  };
 
-  const filtrarDados = (lista) => {
+  const dataBuscaBR = formatarParaBR(dataSelecionada); // Ex: "14/02/2026"
+  const mesBuscaBR = dataSelecionada ? `${dataSelecionada.split('-')[1]}/${dataSelecionada.split('-')[0]}` : ""; // Ex: "02/2026"
+
+  // Modificamos a filtragem para olhar TANTO para a 'data' do pedido QUANTO para a 'data_pagamento'.
+  // Assim, se a pessoa comprou ontem, mas pagou hoje, o dinheiro entra no caixa de HOJE.
+  const filtrarDados = (lista, ehVenda = false) => {
     return lista.filter(item => {
-      if (filtro === 'dia') return item.data.includes(dataHoje);
-      return item.data.includes(mesAtual);
+      // Se for Sangria, usa apenas a "data"
+      if (!ehVenda) {
+          if (!item.data) return false;
+          if (filtro === 'dia') return item.data.includes(dataBuscaBR);
+          return item.data.includes(mesBuscaBR);
+      }
+
+      // Se for Venda, prioriza a 'data_pagamento' para os cálculos. Se não tiver, não entra nas contas do dia.
+      // (Isso garante que o dinheiro só apareça no gráfico/saldo quando realmente for pago)
+      const dataParaFiltrar = item.data_pagamento || item.data;
+      
+      if (!dataParaFiltrar) return false;
+      if (filtro === 'dia') return dataParaFiltrar.includes(dataBuscaBR);
+      return dataParaFiltrar.includes(mesBuscaBR);
     });
   };
 
-  const vendasFiltradas = filtrarDados(vendas);
-  const sangriasFiltradas = filtrarDados(sangrias);
+  // Vendas filtradas para CÁLCULOS (apenas as Pagas contam para o resumo financeiro)
+  const vendasFiltradasCalculos = filtrarDados(vendas, true).filter(v => v.status === 'Pago');
+  
+  // Vendas filtradas para a TABELA (mostra tudo do dia, pago ou pendente)
+  const vendasFiltradasTabela = vendas.filter(item => {
+      const dataParaFiltrar = item.data_pagamento || item.data;
+      if (!dataParaFiltrar) return false;
+      if (filtro === 'dia') return dataParaFiltrar.includes(dataBuscaBR);
+      return dataParaFiltrar.includes(mesBuscaBR);
+  });
+  
+  const sangriasFiltradas = filtrarDados(sangrias, false);
 
-  // --- CÁLCULOS ---
-  const totalBruto = vendasFiltradas.reduce((acc, v) => acc + v.total, 0);
+  // --- CÁLCULOS (Usando apenas vendas pagas) ---
+  const totalBruto = vendasFiltradasCalculos.reduce((acc, v) => acc + v.total, 0);
   const totalRetiradas = sangriasFiltradas.reduce((acc, s) => acc + s.valor, 0);
   const totalLiquido = totalBruto - totalRetiradas;
 
-  // Agrupamento para o Gráfico
- const getTotalPorTipo = (tipo) => 
-    vendasFiltradas
+  // Agrupamento para o Gráfico (Seguro contra Maiúsculas/Minúsculas)
+  const getTotalPorTipo = (tipo) => 
+    vendasFiltradasCalculos
       .filter(v => v.pagamento && v.pagamento.toLowerCase() === tipo.toLowerCase())
       .reduce((acc, v) => acc + v.total, 0);
+
   const dadosGrafico = [
     { name: 'Pix', valor: getTotalPorTipo('Pix') },
     { name: 'Cartão', valor: getTotalPorTipo('Cartão') },
@@ -69,20 +108,28 @@ const Resultados = ({ aoVoltar }) => {
           <h1>Relatório de Resultados</h1>
         </div>
         
-        {/* FILTRO DE TEMPO */}
-        <div className="seletor-tempo">
-          <button 
-            className={filtro === 'dia' ? 'active' : ''} 
-            onClick={() => setFiltro('dia')}
-          >
-            <FaCalendarDay /> Hoje
-          </button>
-          <button 
-            className={filtro === 'mes' ? 'active' : ''} 
-            onClick={() => setFiltro('mes')}
-          >
-            <FaCalendarDays /> Mês
-          </button>
+        {/* FILTRO DE TEMPO E CALENDÁRIO */}
+        <div className="controles-filtro">
+          <input 
+            type="date" 
+            className="input-data-filtro"
+            value={dataSelecionada}
+            onChange={(e) => setDataSelecionada(e.target.value)}
+          />
+          <div className="seletor-tempo">
+            <button 
+              className={filtro === 'dia' ? 'active' : ''} 
+              onClick={() => setFiltro('dia')}
+            >
+              <FaCalendarDay /> Dia
+            </button>
+            <button 
+              className={filtro === 'mes' ? 'active' : ''} 
+              onClick={() => setFiltro('mes')}
+            >
+              <FaCalendarDays /> Mês
+            </button>
+          </div>
         </div>
       </header>
 
@@ -91,7 +138,7 @@ const Resultados = ({ aoVoltar }) => {
           <div className="card-resumo bruto">
             <div className="resumo-icon"><FaArrowTrendUp /></div>
             <div className="resumo-texto">
-              <span>Total Bruto {filtro === 'dia' ? '(Hoje)' : '(Mês)'}</span>
+              <span>Total Bruto {filtro === 'dia' ? `(${dataBuscaBR})` : `(${mesBuscaBR})`}</span>
               <h3>R$ {totalBruto.toFixed(2)}</h3>
             </div>
           </div>
@@ -152,9 +199,50 @@ const Resultados = ({ aoVoltar }) => {
               <span>Eficiência de Caixa:</span>
               <strong style={{color: eficiencia > 70 ? '#2E7D32' : '#D32F2F'}}>{eficiencia}%</strong>
             </div>
-            <p className="obs-relatorio">* Considera apenas vendas pagas e sangrias do período selecionado.</p>
+            <p className="obs-relatorio">* Considera apenas vendas PAGAS e sangrias do período selecionado.</p>
           </section>
         </div>
+
+        {/* NOVA SESSÃO: LISTA DE VENDAS DO DIA/MÊS */}
+        <section className="card-lista-vendas">
+          <h2><FaList /> Detalhamento de Vendas do Período</h2>
+          <div className="tabela-vendas-container">
+            {vendasFiltradasTabela.length > 0 ? (
+              <table className="tabela-vendas">
+                <thead>
+                  <tr>
+                    <th>Data do Pedido</th>
+                    <th>Data do Pagamento</th>
+                    <th>Cliente</th>
+                    <th>Itens</th>
+                    <th>Pagamento</th>
+                    <th>Valor</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendasFiltradasTabela.slice().reverse().map((venda) => (
+                    <tr key={venda.id}>
+                      <td>{venda.data}</td>
+                      <td style={{ color: venda.status === 'Pendente' ? '#D32F2F' : '#2E7D32', fontWeight: 'bold' }}>
+                        {venda.status === 'Pendente' ? 'Aguardando Pagamento' : (venda.data_pagamento || venda.data)}
+                      </td>
+                      <td><strong>{venda.cliente}</strong></td>
+                      <td className="itens-td">{venda.itens}</td>
+                      <td>
+                        <span className={`badge-pagamento ${venda.pagamento.toLowerCase()}`}>
+                          {venda.pagamento}
+                        </span>
+                      </td>
+                      <td className="valor-td">R$ {venda.total.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="sem-vendas">Nenhuma venda registrada para este período.</p>
+            )}
+          </div>
+        </section>
       </main>
     </div>
   );

@@ -140,3 +140,109 @@
   margin-top: 15px;
   font-style: italic;
 }
+
+/* --- NOVOS ESTILOS ADICIONADOS --- */
+
+/* Controles de Filtro no Topo */
+.controles-filtro {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.input-data-filtro {
+  padding: 8px 15px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 1rem;
+  color: #333;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.input-data-filtro:focus {
+  border-color: #D32F2F;
+}
+
+/* Tabela de Detalhamento de Vendas */
+.card-lista-vendas {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  margin-top: 10px;
+}
+
+.card-lista-vendas h2 {
+  font-size: 1.2rem;
+  color: #333;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tabela-vendas-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.tabela-vendas {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.tabela-vendas th {
+  background-color: #f8f8f8;
+  padding: 12px 15px;
+  font-weight: bold;
+  color: #555;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 2px solid #ddd;
+}
+
+.tabela-vendas td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
+  color: #444;
+}
+
+.tabela-vendas tr:hover td {
+  background-color: #fcfcfc;
+}
+
+.itens-td {
+  font-size: 0.9rem;
+  color: #666;
+  max-width: 300px;
+}
+
+.valor-td {
+  font-weight: bold;
+  color: #2E7D32;
+}
+
+.badge-pagamento {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  display: inline-block;
+}
+
+.badge-pagamento.pix { background-color: #ffebee; color: #D32F2F; }
+.badge-pagamento.cartão { background-color: #e3f2fd; color: #1976d2; }
+.badge-pagamento.dinheiro { background-color: #e8f5e9; color: #2E7D32; }
+
+.sem-vendas {
+  text-align: center;
+  padding: 30px;
+  color: #888;
+  font-style: italic;
+}

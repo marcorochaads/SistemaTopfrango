@@ -232,5 +232,98 @@ input:checked + .slider:before { transform: translateX(26px); }
 
 .btn-remover-prod:hover { color: #D32F2F; } 
 
+/* --- NOVOS ESTILOS PARA EDIÇÃO E MODAL --- */
 
+.acoes-td {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+}
+
+.btn-acao-prod {
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 1.1rem;
+  padding: 8px;
+  border-radius: 5px;
+}
+
+.btn-acao-prod.editar { color: #1976D2; background-color: #E3F2FD; }
+.btn-acao-prod.editar:hover { background-color: #1976D2; color: white; }
+
+.btn-acao-prod.remover { color: #D32F2F; background-color: #FFEBEE; }
+.btn-acao-prod.remover:hover { background-color: #D32F2F; color: white; }
+
+/* Modal Overlay (Fundo Escuro) */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(3px);
+}
+
+/* Janela do Modal */
+.modal-edicao {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  border-top: 5px solid #D32F2F;
+}
+
+.modal-edicao h2 {
+  margin-top: 0;
+  margin-bottom: 25px;
+  font-size: 1.4rem;
+  color: #333;
+}
+
+.modal-grid {
+  grid-template-columns: 1fr; /* Força os campos a ficarem um embaixo do outro no modal */
+  gap: 15px;
+}
+
+/* Botões do Modal */
+.modal-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 30px;
+}
+
+.modal-acoes button {
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  transition: 0.2s;
+}
+
+.btn-cancelar {
+  background-color: #f0f0f0;
+  color: #555;
+}
+.btn-cancelar:hover {
+  background-color: #e0e0e0;
+}
+
+.btn-salvar-edicao {
+  background-color: #D32F2F;
+  color: white;
+}
+.btn-salvar-edicao:hover {
+  background-color: #b71c1c;
+}
 
