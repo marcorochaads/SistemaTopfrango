@@ -59,7 +59,7 @@ const Estoque = ({ aoVoltar }) => {
     }
 
     if (!isKG && numVenda < numCompra) {
-      alert(`Erro: Prejuízo detetado! O preço de venda não pode ser inferior ao preço de compra.`);
+      alert(`Erro: Prejuízo detectado! O preço de venda não pode ser inferior ao preço de compra.`);
       return;
     }
 
@@ -80,7 +80,7 @@ const Estoque = ({ aoVoltar }) => {
       });
 
       if (res.ok) {
-        alert("Produto cadastrado com sucesso!"); // <-- AVISO DE SUCESSO AQUI
+        alert("Produto cadastrado com sucesso!");
         carregarProdutos();
         setNome(''); setValorCompra(''); setValorVenda(''); setQuantidade(''); setValorKG('');
       } else {
@@ -176,7 +176,7 @@ const Estoque = ({ aoVoltar }) => {
             </div>
 
             <div className="campo-form">
-              <label><FaDollarSign /> Custo de Compra (Lote):</label>
+              <label><FaDollarSign /> Custo de Compra (unidade):</label>
               <input type="number" value={valorCompra} onChange={e => setValorCompra(e.target.value)} placeholder="0.00" />
             </div>
 
