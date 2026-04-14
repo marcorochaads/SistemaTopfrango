@@ -226,8 +226,15 @@ const Resultados = ({ aoVoltar }) => {
                       <td style={{ color: venda.status === 'Pendente' ? '#D32F2F' : '#2E7D32', fontWeight: 'bold' }}>
                         {venda.status === 'Pendente' ? 'Aguardando Pagamento' : (venda.data_pagamento || venda.data)}
                       </td>
-                      <td><strong>{venda.cliente}</strong></td>
-                      <td className="itens-td">{venda.itens}</td>
+                      <td><strong>{venda.nome_cliente || venda.cliente || 'Balcão'}</strong></td>
+                      
+                      {/* --- A CORREÇÃO FOI FEITA AQUI --- */}
+                      <td className="itens-td">
+                        {Array.isArray(venda.itens) 
+                          ? venda.itens.map(item => `${item.quantidade}x ${item.produto_nome}`).join(', ') 
+                          : venda.itens || "Sem itens"}
+                      </td>
+                      
                       <td>
                         <span className={`badge-pagamento ${venda.pagamento.toLowerCase()}`}>
                           {venda.pagamento}

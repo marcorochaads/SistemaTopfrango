@@ -3,16 +3,18 @@ import './Vendas.css';
 import { 
   FaTrash, FaPlus, FaMinus, FaCheckCircle, 
   FaEraser, FaShoppingBasket, FaArrowLeft, 
-  FaHashtag, FaCalendarDay, FaWeightHanging 
+  FaHashtag, FaCalendarDay, FaWeightHanging,
+  FaBox 
 } from 'react-icons/fa';
 import ModalPagamento from '../../componentes/ModalPagamento/ModalPagamento';
 import { ConexaoContext } from '../../App'; 
 
-const Vendas = ({ aoVoltar, proximoId }) => {
+const Vendas = ({ aoVoltar }) => {
   const [produtos, setProdutos] = useState([]);
   const [carrinho, setCarrinho] = useState([]);
-  const [cliente, setCliente] = useState('');
+  const [cliente, setCliente] = useState(''); 
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [numeroVenda, setNumeroVenda] = useState(1); 
   const { setErroConexao } = useContext(ConexaoContext);
 
   const dataAtual = new Date().toLocaleDateString('pt-BR');
@@ -30,15 +32,34 @@ const Vendas = ({ aoVoltar, proximoId }) => {
     }
   };
 
+  const carregarProximoId = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/vendas');
+      if (res.ok) {
+        const vendas = await res.json();
+        
+        const vendasDeHoje = vendas.filter(venda => {
+          if (!venda.data) return false;
+          const dataDaVenda = venda.data.split(',')[0].trim(); 
+          return dataDaVenda === dataAtual;
+        });
+
+        setNumeroVenda(vendasDeHoje.length + 1);
+      }
+    } catch (error) {
+      console.error("Erro ao buscar as vendas:", error);
+    }
+  };
+
   useEffect(() => {
     carregarProdutos();
+    carregarProximoId(); 
   }, []);
 
   const adicionarItem = (prodEstoque) => {
     const itemExistente = carrinho.find(item => item.id === prodEstoque.id);
     const qtdNoCarrinho = itemExistente ? itemExistente.qtd : 0;
 
-    // Se for unidade, checa o estoque normal
     if (prodEstoque.unidade === 'un' && qtdNoCarrinho + 1 > prodEstoque.qtd) {
       alert(`Estoque insuficiente! Temos apenas ${prodEstoque.qtd} unidades.`);
       return;
@@ -47,7 +68,6 @@ const Vendas = ({ aoVoltar, proximoId }) => {
     const precoVenda = prodEstoque.unidade === 'kg' ? prodEstoque.vKG : prodEstoque.vVenda;
 
     if (itemExistente) {
-      // Se for KG, não incrementamos a "quantidade" (peso) automaticamente ao clicar
       if (prodEstoque.unidade === 'un') {
         setCarrinho(carrinho.map(item =>
           item.id === prodEstoque.id ? { ...item, qtd: item.qtd + 1 } : item
@@ -61,7 +81,7 @@ const Vendas = ({ aoVoltar, proximoId }) => {
         nome: prodEstoque.nome, 
         preco: precoVenda, 
         unidade: prodEstoque.unidade,
-        qtd: prodEstoque.unidade === 'un' ? 1 : 0 // Começa com 0 para o vendedor digitar o peso
+        qtd: prodEstoque.unidade === 'un' ? 1 : 0 
       }]);
     }
   };
@@ -85,8 +105,6 @@ const Vendas = ({ aoVoltar, proximoId }) => {
     const prodOriginal = produtos.find(p => p.id === id);
     let peso = parseFloat(valor) || 0;
 
-    // Como o estoque agora é por UNIDADE de peça, 
-    // apenas verificamos se ainda existe o produto no estoque físico
     if (prodOriginal.qtd <= 0) {
       alert(`Produto esgotado no estoque!`);
       return;
@@ -104,16 +122,23 @@ const Vendas = ({ aoVoltar, proximoId }) => {
   };
 
   const confirmarPedido = async (metodoPagamento) => {
-    const descricaoItens = carrinho
-      .map(item => `${item.qtd}${item.unidade} ${item.nome}`)
-      .join(', ');
+    // 1. Mapeia o carrinho para o novo formato do Banco de Dados (1FN)
+    const itensNormalizados = carrinho.map(item => ({
+      produto_id: item.id,
+      quantidade: item.unidade === 'kg' ? item.qtd : item.qtd, 
+      preco_unitario: item.preco,
+      subtotal: item.preco * item.qtd
+    }));
 
+    // 2. Prepara o pacote de envio
     const dadosVenda = {
-      cliente,
+      cliente_nome: cliente, 
+      usuario_id: 1, 
       total: totalGeral,
       pagamento: metodoPagamento,
       status: metodoPagamento === 'Pagar Depois' ? 'Pendente' : 'Pago',
-      itens: descricaoItens
+      data: new Date().toLocaleString('pt-BR'),
+      itensArray: itensNormalizados 
     };
 
     try {
@@ -125,22 +150,14 @@ const Vendas = ({ aoVoltar, proximoId }) => {
       
       if (!resVenda.ok) throw new Error("Erro ao salvar venda");
 
-      for (const item of carrinho) {
-        // LÓGICA DE BAIXA: 
-        // Se for KG, retira 1 unidade (1 peça). Se for UN, retira a quantidade vendida.
-        const baixaEstoque = item.unidade === 'kg' ? 1 : item.qtd;
-
-        await fetch(`http://localhost:5000/api/produtos/${item.id}/baixa`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ quantidade: baixaEstoque })
-        });
-      }
+      // O LOOP DE BAIXA DE ESTOQUE FOI REMOVIDO DAQUI! 
+      // O novo backend já faz isso com total segurança na mesma rota da venda.
 
       alert("Venda finalizada com sucesso!");
       setErroConexao(false);
       novaVenda();
       carregarProdutos(); 
+      carregarProximoId(); 
     } catch (error) {
       console.error("Erro na finalização:", error);
       setErroConexao(true);
@@ -152,15 +169,31 @@ const Vendas = ({ aoVoltar, proximoId }) => {
   return (
     <div className="container-vendas">
       <section className="painel-catalogo">
-        <header className="header-produtos">
-          <button className="btn-voltar-topo" onClick={aoVoltar}>
-            <FaArrowLeft /> Menu
-          </button>
-          <h2><FaShoppingBasket /> PDV TopFrango</h2>
-          <div className="info-venda-topo">
-            <span><FaHashtag /> Venda: <strong>{proximoId}</strong></span>
-            <span><FaCalendarDay /> {dataAtual}</span>
+        <header className="header-produtos" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+            <button 
+              className="btn-voltar-topo" 
+              onClick={aoVoltar} 
+              style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}
+            >
+              <FaArrowLeft /> Menu
+            </button>
+            
+            <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', lineHeight: '1' }}>
+              <FaShoppingBasket /> PDV TopFrango
+            </h2>
           </div>
+
+          <div className="info-venda-topo" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <FaHashtag /> Venda: <strong>{numeroVenda}</strong>
+            </span>
+            <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <FaCalendarDay /> {dataAtual}
+            </span>
+          </div>
+          
         </header>
         
         <div className="grid-produtos">
@@ -173,10 +206,17 @@ const Vendas = ({ aoVoltar, proximoId }) => {
             >
               <span className="tag-unidade">{prod.unidade.toUpperCase()}</span>
               
-              {prod.unidade === 'kg' && (
+              {prod.unidade === 'kg' ? (
                 <FaWeightHanging 
                   className="icone-peso-kg" 
+                  size={26}
                   color={prod.qtd <= 0 ? "#ffcccc" : "#D32F2F"} 
+                />
+              ) : (
+                <FaBox 
+                  className="icone-unidade" 
+                  size={26}
+                  color={prod.qtd <= 0 ? "#cccccc" : "#1976D2"} 
                 />
               )}
 
@@ -198,10 +238,10 @@ const Vendas = ({ aoVoltar, proximoId }) => {
           <h3>Resumo do Pedido</h3>
         </div>
         <div className="form-cliente">
-          <label>Nome do Cliente:</label>
+          <label>Cliente (Opcional):</label>
           <input
             type="text"
-            placeholder="Nome para identificação..."
+            placeholder="Nome para identificação na via..."
             value={cliente}
             onChange={(e) => setCliente(e.target.value)}
           />
@@ -255,7 +295,7 @@ const Vendas = ({ aoVoltar, proximoId }) => {
           <div className="botoes-acao">
             <button className="btn-cancelar" onClick={novaVenda}><FaEraser /> Limpar</button>
             <button className="btn-finalizar" onClick={() => setIsModalOpen(true)}
-              disabled={carrinho.length === 0 || !cliente || totalGeral === 0}><FaCheckCircle /> Finalizar</button>
+              disabled={carrinho.length === 0 || totalGeral === 0}><FaCheckCircle /> Finalizar</button>
           </div>
         </div>
       </aside>

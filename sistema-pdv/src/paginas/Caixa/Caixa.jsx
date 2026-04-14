@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './Caixa.css';
 import { 
-  FaArrowLeft, FaCashRegister, FaMoneyBillWave, FaQrcode, 
-  FaCreditCard, FaHandHoldingUsd, FaMinusCircle, 
+  FaArrowLeft, FaCashRegister, FaHandHoldingUsd, FaMinusCircle, 
   FaCalendarDay, FaCheckDouble, FaHistory 
 } from 'react-icons/fa';
 
@@ -36,8 +35,17 @@ const Caixa = ({ aoVoltar }) => {
     carregarDados();
   }, []);
 
-  // Verifica se o turno selecionado já foi batido hoje
-  const turnoJaRealizado = batimentos.some(b => b.data === dataHoje && b.turno === turno);
+  const isHoje = (dataString) => {
+    if (!dataString) return false;
+    const dataApenas = dataString.split(',')[0].trim();
+    return dataApenas === dataHoje;
+  };
+
+  const vendasHoje = vendas.filter(v => isHoje(v.data));
+  const sangriasHoje = sangrias.filter(s => isHoje(s.data));
+  const batimentosHoje = batimentos.filter(b => isHoje(b.data));
+
+  const turnoJaRealizado = batimentosHoje.some(b => b.turno === turno);
 
   const confirmarSangria = async () => {
     const valor = parseFloat(valorSangria);
@@ -65,17 +73,15 @@ const Caixa = ({ aoVoltar }) => {
     }
   };
 
-  // --- FUNÇÃO ATUALIZADA COM TRAVA DE TURNO ---
   const salvarBatimento = async () => {
     if (!valorFisico) return alert("Insira o valor contado na gaveta!");
 
-    // BLOQUEIO DE SEGURANÇA
     if (turnoJaRealizado) {
       return alert(`O batimento do ${turno} já foi realizado hoje!`);
     }
 
     const dadosBatimento = {
-      data: dataHoje,
+      data: new Date().toLocaleString('pt-BR'), 
       turno,
       valor_sistema: saldoSistema,
       valor_fisico: parseFloat(valorFisico),
@@ -102,9 +108,6 @@ const Caixa = ({ aoVoltar }) => {
       alert("Erro ao salvar batimento no banco.");
     }
   };
-
-  const vendasHoje = vendas.filter(v => v.data.includes(dataHoje));
-  const sangriasHoje = sangrias.filter(s => s.data.includes(dataHoje));
 
   const totalDinheiro = vendasHoje.filter(v => v.pagamento === 'Dinheiro' && v.status === 'Pago').reduce((acc, v) => acc + v.total, 0);
   const totalPix = vendasHoje.filter(v => v.pagamento === 'PIX' && v.status === 'Pago').reduce((acc, v) => acc + v.total, 0);
@@ -169,7 +172,7 @@ const Caixa = ({ aoVoltar }) => {
                 </tr>
               </thead>
               <tbody>
-                {batimentos.filter(b => b.data === dataHoje).map((b, i) => (
+                {batimentosHoje.map((b, i) => (
                   <tr key={i}>
                     <td>{b.turno}</td>
                     <td>R$ {parseFloat(b.valor_sistema).toFixed(2)}</td>
@@ -213,7 +216,6 @@ const Caixa = ({ aoVoltar }) => {
               <option value="2º Turno">2º Turno (Fechamento)</option>
             </select>
 
-            {/* AVISO DE TURNO JÁ REALIZADO */}
             {turnoJaRealizado ? (
               <div className="msg-feedback erro" style={{ margin: '15px 0' }}>
                 ⚠️ O batimento deste turno já foi gravado hoje.

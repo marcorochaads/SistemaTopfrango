@@ -7,12 +7,8 @@ import L from 'leaflet';
 import 'leaflet-routing-machine';
 import ModalPagamento from '../../componentes/ModalPagamento/ModalPagamento'; 
 
-// Importação do logo
 import logoTopFrango from '../../assets/imagens/logo-topfrango.png';
 
-// --- Configuração dos Ícones Personalizados ---
-
-// Ícone para a Sede (TopFrango)
 const iconeSede = L.icon({
   iconUrl: logoTopFrango,
   iconSize: [45, 45], 
@@ -21,7 +17,6 @@ const iconeSede = L.icon({
   className: 'icone-mapa-sede' 
 });
 
-// Ícone para o ponto de Chegada/Destino usando SVG puro (Pino Vermelho/Preto)
 const svgPin = `
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 384 512" width="35" height="45">
     <path fill="rgba(0,0,0,0.3)" d="M192 480c-25.5 0-48.4-13.6-61.9-35L0 192C0 86 86 0 192 0s192 86 192 192L253.9 445c-13.5 21.4-36.4 35-61.9 35z" transform="translate(5, 5)"/>
@@ -34,11 +29,9 @@ const iconeChegada = L.divIcon({
   html: `<div class="icone-chegada-pin">${svgPin}</div>`,
   className: 'icone-mapa-chegada',
   iconSize: [35, 45],
-  iconAnchor: [17, 45], // Ajustado para a ponta do pino apontar para o local exato
+  iconAnchor: [17, 45], 
 });
 
-
-// Componente de Controle de Rota
 const RoutingControl = ({ sede, destino, setDistancia }) => {
   const map = useMap();
 
@@ -50,17 +43,14 @@ const RoutingControl = ({ sede, destino, setDistancia }) => {
         L.latLng(sede[0], sede[1]),
         L.latLng(destino[0], destino[1])
       ],
-      lineOptions: {
-        styles: [{ color: '#D32F2F', weight: 5 }] 
-      },
+      lineOptions: { styles: [{ color: '#D32F2F', weight: 5 }] },
       addWaypoints: false,
       draggableWaypoints: false,
       fitSelectedRoutes: true,
       show: false, 
-      createMarker: () => null, // Não cria marcadores padrão
+      createMarker: () => null, 
     }).on('routesfound', (e) => {
-      const routes = e.routes;
-      const summary = routes[0].summary;
+      const summary = e.routes[0].summary;
       setDistancia((summary.totalDistance / 1000).toFixed(2));
     }).addTo(map);
 
@@ -104,10 +94,7 @@ const Rotas = ({ aoVoltar }) => {
       const response = await fetch(`http://localhost:5000/api/vendas/${pedidoSelecionado.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          status: 'Pago', 
-          pagamento: metodoPagamentoReal 
-        })
+        body: JSON.stringify({ status: 'Pago', pagamento: metodoPagamentoReal })
       });
 
       if (response.ok) {
@@ -125,12 +112,13 @@ const Rotas = ({ aoVoltar }) => {
 
   const MapEvents = () => {
     useMapEvents({
-      click(e) {
-        setDestino([e.latlng.lat, e.latlng.lng]);
-      },
+      click(e) { setDestino([e.latlng.lat, e.latlng.lng]); },
     });
     return null;
   };
+
+  // Função para exibir o cliente corretamente (novo banco ou antigo)
+  const getNomeCliente = (pedido) => pedido.nome_cliente || pedido.cliente || 'Balcão';
 
   return (
     <div className="container-rotas">
@@ -160,7 +148,7 @@ const Rotas = ({ aoVoltar }) => {
                 <option value="" disabled>Escolha um pedido...</option>
                 {pedidosPendentes.map(p => (
                   <option key={p.id} value={p.id}>
-                    #{p.id} - {p.cliente}
+                    #{p.id} - {getNomeCliente(p)}
                   </option>
                 ))}
               </select>
@@ -169,7 +157,7 @@ const Rotas = ({ aoVoltar }) => {
             <div className="campo-rota">
               <label><FaUser /> Cliente:</label>
               <div className="display-fake-input">
-                {pedidoSelecionado ? pedidoSelecionado.cliente : "Selecione um pedido..."}
+                {pedidoSelecionado ? getNomeCliente(pedidoSelecionado) : "Selecione um pedido..."}
               </div>
             </div>
 
@@ -180,7 +168,10 @@ const Rotas = ({ aoVoltar }) => {
 
             {pedidoSelecionado && (
               <div className="resumo-pedido-entrega">
-                <strong>Itens:</strong> {pedidoSelecionado.itens} <br/>
+                {/* CORREÇÃO DO ARRAY DE ITENS AQUI */}
+                <strong>Itens:</strong> {Array.isArray(pedidoSelecionado.itens) 
+                    ? pedidoSelecionado.itens.map(item => `${item.quantidade}x ${item.produto_nome}`).join(', ') 
+                    : pedidoSelecionado.itens || "Sem itens"} <br/>
                 <strong>Total:</strong> R$ {pedidoSelecionado.total.toFixed(2)}
               </div>
             )}
