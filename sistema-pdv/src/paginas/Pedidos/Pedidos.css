@@ -24,29 +24,11 @@
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.header-info {
+/* Espaço reservado para o menu flutuante lateral */
+.header-titulo-pedidos {
+  margin-left: 60px;
   display: flex;
   align-items: center;
-  gap: 20px;
-}
-
-.btn-voltar-pedidos {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background: none;
-  border: 2px solid var(--vermelho-topfrango);
-  color: var(--vermelho-topfrango);
-  padding: 8px 15px;
-  border-radius: 20px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: 0.2s;
-}
-
-.btn-voltar-pedidos:hover {
-  background: var(--vermelho-topfrango);
-  color: white;
 }
 
 .header-pedidos h1 {

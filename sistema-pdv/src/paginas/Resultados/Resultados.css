@@ -18,14 +18,18 @@
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-.btn-voltar-resultados {
-  display: flex; align-items: center; gap: 8px;
-  background: none; border: 2px solid #D32F2F;
-  color: #D32F2F; padding: 8px 15px; border-radius: 20px;
-  font-weight: bold; cursor: pointer; transition: 0.2s;
+/* Espaço reservado para o menu flutuante lateral */
+.header-titulo-resultados {
+  margin-left: 60px;
+  display: flex;
+  align-items: center;
 }
 
-.btn-voltar-resultados:hover { background: #D32F2F; color: white; }
+.header-resultados h1 {
+  color: #333;
+  margin: 0;
+  font-size: 1.5rem;
+}
 
 .area-resultados {
   padding: 30px;
@@ -104,7 +108,6 @@
 .grafico-container {
   margin-top: 10px;
 }
-
 
 .seletor-tempo {
   display: flex;
@@ -236,7 +239,7 @@
   display: inline-block;
 }
 
-.badge-pagamento.pix { background-color: #ffebee; color: #D32F2F; }
+.badge-pagamento.pix { background-color: #ffebee; color: #2fd33d; }
 .badge-pagamento.cartão { background-color: #e3f2fd; color: #1976d2; }
 .badge-pagamento.dinheiro { background-color: #e8f5e9; color: #2E7D32; }
 
@@ -245,4 +248,4 @@
   padding: 30px;
   color: #888;
   font-style: italic;
-}
+} 
