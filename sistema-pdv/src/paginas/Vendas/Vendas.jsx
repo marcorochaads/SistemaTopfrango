@@ -2,19 +2,21 @@ import React, { useState, useEffect, useContext } from 'react';
 import './Vendas.css';
 import { 
   FaTrash, FaPlus, FaMinus, FaCheckCircle, 
-  FaEraser, FaShoppingBasket, FaArrowLeft, 
+  FaEraser, FaShoppingBasket, 
   FaHashtag, FaCalendarDay, FaWeightHanging,
-  FaBox 
+  FaBox, FaCashRegister, FaArrowRight
 } from 'react-icons/fa';
 import ModalPagamento from '../../componentes/ModalPagamento/ModalPagamento';
 import { ConexaoContext } from '../../App'; 
 
-const Vendas = ({ aoVoltar }) => {
+// Recebendo a propriedade irParaCaixa passada pelo App.js
+const Vendas = ({ irParaCaixa }) => {
   const [produtos, setProdutos] = useState([]);
   const [carrinho, setCarrinho] = useState([]);
-  const [cliente, setCliente] = useState('');
+  const [cliente, setCliente] = useState(''); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [numeroVenda, setNumeroVenda] = useState(1); 
+  const [caixaAberto, setCaixaAberto] = useState(true);
   const { setErroConexao } = useContext(ConexaoContext);
 
   const dataAtual = new Date().toLocaleDateString('pt-BR');
@@ -32,25 +34,18 @@ const Vendas = ({ aoVoltar }) => {
     }
   };
 
-  // Função atualizada para contar apenas as vendas do dia de hoje (corrigido o parse da data)
   const carregarProximoId = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/vendas');
       if (res.ok) {
         const vendas = await res.json();
         
-        // Filtra as vendas para pegar apenas as que aconteceram hoje
         const vendasDeHoje = vendas.filter(venda => {
           if (!venda.data) return false;
-          
-          // Como o backend salva "DD/MM/YYYY, HH:MM:SS",
-          // separamos pela vírgula e pegamos só a parte da data
           const dataDaVenda = venda.data.split(',')[0].trim(); 
-          
           return dataDaVenda === dataAtual;
         });
 
-        // O próximo número é a quantidade de vendas de hoje + 1
         setNumeroVenda(vendasDeHoje.length + 1);
       }
     } catch (error) {
@@ -58,14 +53,32 @@ const Vendas = ({ aoVoltar }) => {
     }
   };
 
+  const verificarCaixa = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/aberturas');
+      if (res.ok) {
+        const aberturas = await res.json();
+        const temAberturaHoje = aberturas.some(a => {
+          if (!a.data) return false;
+          const dataDaAbertura = a.data.split(/[, ]+/)[0].trim(); 
+          return dataDaAbertura === dataAtual;
+        });
+        setCaixaAberto(temAberturaHoje);
+      }
+    } catch (error) {
+      console.error("Erro ao verificar status do caixa:", error);
+    }
+  };
+
   useEffect(() => {
     carregarProdutos();
     carregarProximoId(); 
+    verificarCaixa();
   }, []);
 
   const adicionarItem = (prodEstoque) => {
     const itemExistente = carrinho.find(item => item.id === prodEstoque.id);
-    const qtdNoCarrinho = itemExistente ? itemExistente.qtd : 0;
+    const qtdNoCarrinho = itemExistente ? parseFloat(itemExistente.qtd) || 0 : 0;
 
     if (prodEstoque.unidade === 'un' && qtdNoCarrinho + 1 > prodEstoque.qtd) {
       alert(`Estoque insuficiente! Temos apenas ${prodEstoque.qtd} unidades.`);
@@ -88,7 +101,7 @@ const Vendas = ({ aoVoltar }) => {
         nome: prodEstoque.nome, 
         preco: precoVenda, 
         unidade: prodEstoque.unidade,
-        qtd: prodEstoque.unidade === 'un' ? 1 : 0 
+        qtd: prodEstoque.unidade === 'un' ? 1 : '' 
       }]);
     }
   };
@@ -110,7 +123,6 @@ const Vendas = ({ aoVoltar }) => {
 
   const alterarPesoManual = (id, valor) => {
     const prodOriginal = produtos.find(p => p.id === id);
-    let peso = parseFloat(valor) || 0;
 
     if (prodOriginal.qtd <= 0) {
       alert(`Produto esgotado no estoque!`);
@@ -118,7 +130,7 @@ const Vendas = ({ aoVoltar }) => {
     }
 
     setCarrinho(carrinho.map(item =>
-      item.id === id ? { ...item, qtd: peso } : item
+      item.id === id ? { ...item, qtd: valor === '' ? '' : valor } : item
     ));
   };
 
@@ -128,19 +140,32 @@ const Vendas = ({ aoVoltar }) => {
     setIsModalOpen(false);
   };
 
-  const confirmarPedido = async (metodoPagamento) => {
-    const descricaoItens = carrinho
-      .map(item => `${item.qtd}${item.unidade} ${item.nome}`)
-      .join(', ');
+  const confirmarPedido = async (metodoPagamento, telefoneCliente) => {
+    const itensVazios = carrinho.some(item => item.unidade === 'kg' && (item.qtd === '' || parseFloat(item.qtd) <= 0));
+    if (itensVazios) {
+        alert("Preencha o peso (kg) de todos os itens antes de finalizar.");
+        return;
+    }
 
-    // --- CORREÇÃO APLICADA AQUI: ADICIONANDO A DATA ---
+    const itensNormalizados = carrinho.map(item => {
+      const quantidadeValida = parseFloat(item.qtd) || 0;
+      return {
+        produto_id: item.id,
+        quantidade: quantidadeValida, 
+        preco_unitario: item.preco,
+        subtotal: item.preco * quantidadeValida
+      };
+    });
+
     const dadosVenda = {
-      cliente,
+      cliente_nome: cliente,
+      cliente_telefone: telefoneCliente || null, 
+      usuario_id: 1, 
       total: totalGeral,
       pagamento: metodoPagamento,
       status: metodoPagamento === 'Pagar Depois' ? 'Pendente' : 'Pago',
-      itens: descricaoItens,
-      data: new Date().toLocaleString('pt-BR') 
+      data: new Date().toLocaleString('pt-BR'),
+      itensArray: itensNormalizados 
     };
 
     try {
@@ -151,16 +176,6 @@ const Vendas = ({ aoVoltar }) => {
       });
       
       if (!resVenda.ok) throw new Error("Erro ao salvar venda");
-
-      for (const item of carrinho) {
-        const baixaEstoque = item.unidade === 'kg' ? 1 : item.qtd;
-
-        await fetch(`http://localhost:5000/api/produtos/${item.id}/baixa`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ quantidade: baixaEstoque })
-        });
-      }
 
       alert("Venda finalizada com sucesso!");
       setErroConexao(false);
@@ -173,30 +188,19 @@ const Vendas = ({ aoVoltar }) => {
     }
   };
 
-  const totalGeral = carrinho.reduce((acc, item) => acc + (item.preco * item.qtd), 0);
+  const totalGeral = carrinho.reduce((acc, item) => acc + (item.preco * (parseFloat(item.qtd) || 0)), 0);
 
   return (
     <div className="container-vendas">
       <section className="painel-catalogo">
-        {/* Cabeçalho atualizado com os alinhamentos corretos */}
         <header className="header-produtos" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
           
-          {/* Grupo da Esquerda: Botão e Título */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-            <button 
-              className="btn-voltar-topo" 
-              onClick={aoVoltar} 
-              style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: 0 }}
-            >
-              <FaArrowLeft /> Menu
-            </button>
-            
+          <div className="header-titulo-vendas" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', lineHeight: '1' }}>
               <FaShoppingBasket /> PDV TopFrango
             </h2>
           </div>
 
-          {/* Grupo da Direita: Informações da Venda */}
           <div className="info-venda-topo" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <FaHashtag /> Venda: <strong>{numeroVenda}</strong>
@@ -208,41 +212,79 @@ const Vendas = ({ aoVoltar }) => {
           
         </header>
         
-        <div className="grid-produtos">
-          {produtos.map((prod) => (
+        {!caixaAberto ? (
+          <div style={{
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            height: '60vh', backgroundColor: '#ffebee', borderRadius: '8px', border: '2px dashed #f44336',
+            color: '#d32f2f', textAlign: 'center', padding: '20px', margin: '20px 0'
+          }}>
+            <FaCashRegister size={50} style={{ marginBottom: '15px' }} />
+            <h2>Caixa Fechado</h2>
+            <p>Você precisa abrir o caixa do dia na tela de "Caixa" antes de registrar vendas.</p>
+            
+            {/* O onClick agora chama a função irParaCaixa que veio do App.js */}
             <button 
-              key={prod.id} 
-              className={`card-produto ${prod.qtd <= 0 ? 'sem-estoque' : ''}`} 
-              onClick={() => adicionarItem(prod)}
-              disabled={prod.qtd <= 0}
+              onClick={irParaCaixa} 
+              style={{
+                marginTop: '20px',
+                padding: '12px 24px',
+                backgroundColor: '#d32f2f',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
+                fontSize: '16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                transition: 'background-color 0.2s'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#b71c1c'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#d32f2f'}
             >
-              <span className="tag-unidade">{prod.unidade.toUpperCase()}</span>
-              
-              {prod.unidade === 'kg' ? (
-                <FaWeightHanging 
-                  className="icone-peso-kg" 
-                  size={26}
-                  color={prod.qtd <= 0 ? "#ffcccc" : "#D32F2F"} 
-                />
-              ) : (
-                <FaBox 
-                  className="icone-unidade" 
-                  size={26}
-                  color={prod.qtd <= 0 ? "#cccccc" : "#1976D2"} 
-                />
-              )}
-
-              <span className="nome-prod">{prod.nome}</span>
-              <span className="preco-prod">
-                R$ {(prod.unidade === 'kg' ? prod.vKG : prod.vVenda).toFixed(2)}
-                {prod.unidade === 'kg' ? '/kg' : ''}
-              </span>
-              <small className="estoque-indicador">
-                {prod.qtd <= 0 ? "ESGOTADO" : `Estoque: ${prod.qtd} un`}
-              </small>
+              Ir para o Caixa <FaArrowRight />
             </button>
-          ))}
-        </div>
+            
+          </div>
+        ) : (
+          <div className="grid-produtos">
+            {produtos.map((prod) => (
+              <button 
+                key={prod.id} 
+                className={`card-produto ${prod.qtd <= 0 ? 'sem-estoque' : ''}`} 
+                onClick={() => adicionarItem(prod)}
+                disabled={prod.qtd <= 0}
+              >
+                <span className="tag-unidade">{prod.unidade.toUpperCase()}</span>
+                
+                {prod.unidade === 'kg' ? (
+                  <FaWeightHanging 
+                    className="icone-peso-kg" 
+                    size={26}
+                    color={prod.qtd <= 0 ? "#ffcccc" : "#D32F2F"} 
+                  />
+                ) : (
+                  <FaBox 
+                    className="icone-unidade" 
+                    size={26}
+                    color={prod.qtd <= 0 ? "#cccccc" : "#1976D2"} 
+                  />
+                )}
+
+                <span className="nome-prod">{prod.nome}</span>
+                <span className="preco-prod">
+                  R$ {(prod.unidade === 'kg' ? prod.vKG : prod.vVenda).toFixed(2)}
+                  {prod.unidade === 'kg' ? '/kg' : ''}
+                </span>
+                <small className="estoque-indicador">
+                  {prod.qtd <= 0 ? "ESGOTADO" : `Estoque: ${prod.qtd} un`}
+                </small>
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       <aside className="painel-resumo">
@@ -250,10 +292,10 @@ const Vendas = ({ aoVoltar }) => {
           <h3>Resumo do Pedido</h3>
         </div>
         <div className="form-cliente">
-          <label>Nome do Cliente:</label>
+          <label>Cliente (Opcional):</label>
           <input
             type="text"
-            placeholder="Nome para identificação..."
+            placeholder="Nome para identificação na via..."
             value={cliente}
             onChange={(e) => setCliente(e.target.value)}
           />
@@ -292,7 +334,7 @@ const Vendas = ({ aoVoltar }) => {
                       </div>
                     )}
                   </div>
-                  <div className="subtotal"><span>R$ {(item.preco * item.qtd).toFixed(2)}</span></div>
+                  <div className="subtotal"><span>R$ {(item.preco * (parseFloat(item.qtd) || 0)).toFixed(2)}</span></div>
                   <button className="btn-lixeira" onClick={() => removerItem(item.id)}><FaTrash /></button>
                 </div>
               ))
@@ -307,7 +349,7 @@ const Vendas = ({ aoVoltar }) => {
           <div className="botoes-acao">
             <button className="btn-cancelar" onClick={novaVenda}><FaEraser /> Limpar</button>
             <button className="btn-finalizar" onClick={() => setIsModalOpen(true)}
-              disabled={carrinho.length === 0 || !cliente || totalGeral === 0}><FaCheckCircle /> Finalizar</button>
+              disabled={carrinho.length === 0 || totalGeral === 0 || !caixaAberto}><FaCheckCircle /> Finalizar</button>
           </div>
         </div>
       </aside>

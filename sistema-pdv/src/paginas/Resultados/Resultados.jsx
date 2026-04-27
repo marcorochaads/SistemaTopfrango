@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import './Resultados.css';
 import { 
-  FaArrowLeft, FaArrowTrendUp, 
+  FaArrowTrendUp, 
   FaArrowTrendDown, FaWallet, FaReceipt, FaCalendarDay, FaCalendarDays, FaList 
 } from 'react-icons/fa6';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 
-const Resultados = ({ aoVoltar }) => {
+const Resultados = () => {
   const [vendas, setVendas] = useState([]);
   const [sangrias, setSangrias] = useState([]);
   const [filtro, setFiltro] = useState('dia'); 
   
-  // Pega a data local de hoje e converte para o formato do input (YYYY-MM-DD)
   const dataHojeBR = new Date().toLocaleDateString('pt-BR');
   const [dia, mes, ano] = dataHojeBR.split('/');
   const hojeISO = `${ano}-${mes}-${dia}`;
@@ -34,30 +33,23 @@ const Resultados = ({ aoVoltar }) => {
     carregarDados();
   }, []);
 
-  // --- LÓGICA DE FILTRAGEM ---
-  // Converte a data selecionada no calendário (YYYY-MM-DD) para o formato do banco (DD/MM/YYYY)
   const formatarParaBR = (dataIso) => {
     if (!dataIso) return "";
     const [a, m, d] = dataIso.split('-');
     return `${d}/${m}/${a}`;
   };
 
-  const dataBuscaBR = formatarParaBR(dataSelecionada); // Ex: "14/02/2026"
-  const mesBuscaBR = dataSelecionada ? `${dataSelecionada.split('-')[1]}/${dataSelecionada.split('-')[0]}` : ""; // Ex: "02/2026"
+  const dataBuscaBR = formatarParaBR(dataSelecionada);
+  const mesBuscaBR = dataSelecionada ? `${dataSelecionada.split('-')[1]}/${dataSelecionada.split('-')[0]}` : "";
 
-  // Modificamos a filtragem para olhar TANTO para a 'data' do pedido QUANTO para a 'data_pagamento'.
-  // Assim, se a pessoa comprou ontem, mas pagou hoje, o dinheiro entra no caixa de HOJE.
   const filtrarDados = (lista, ehVenda = false) => {
     return lista.filter(item => {
-      // Se for Sangria, usa apenas a "data"
       if (!ehVenda) {
           if (!item.data) return false;
           if (filtro === 'dia') return item.data.includes(dataBuscaBR);
           return item.data.includes(mesBuscaBR);
       }
 
-      // Se for Venda, prioriza a 'data_pagamento' para os cálculos. Se não tiver, não entra nas contas do dia.
-      // (Isso garante que o dinheiro só apareça no gráfico/saldo quando realmente for pago)
       const dataParaFiltrar = item.data_pagamento || item.data;
       
       if (!dataParaFiltrar) return false;
@@ -66,10 +58,8 @@ const Resultados = ({ aoVoltar }) => {
     });
   };
 
-  // Vendas filtradas para CÁLCULOS (apenas as Pagas contam para o resumo financeiro)
   const vendasFiltradasCalculos = filtrarDados(vendas, true).filter(v => v.status === 'Pago');
   
-  // Vendas filtradas para a TABELA (mostra tudo do dia, pago ou pendente)
   const vendasFiltradasTabela = vendas.filter(item => {
       const dataParaFiltrar = item.data_pagamento || item.data;
       if (!dataParaFiltrar) return false;
@@ -79,12 +69,10 @@ const Resultados = ({ aoVoltar }) => {
   
   const sangriasFiltradas = filtrarDados(sangrias, false);
 
-  // --- CÁLCULOS (Usando apenas vendas pagas) ---
   const totalBruto = vendasFiltradasCalculos.reduce((acc, v) => acc + v.total, 0);
   const totalRetiradas = sangriasFiltradas.reduce((acc, s) => acc + s.valor, 0);
   const totalLiquido = totalBruto - totalRetiradas;
 
-  // Agrupamento para o Gráfico (Seguro contra Maiúsculas/Minúsculas)
   const getTotalPorTipo = (tipo) => 
     vendasFiltradasCalculos
       .filter(v => v.pagamento && v.pagamento.toLowerCase() === tipo.toLowerCase())
@@ -101,14 +89,10 @@ const Resultados = ({ aoVoltar }) => {
   return (
     <div className="container-resultados">
       <header className="header-resultados">
-        <div className="header-info">
-          <button className="btn-voltar-resultados" onClick={aoVoltar}>
-            <FaArrowLeft /> Menu
-          </button>
-          <h1>Relatório de Resultados</h1>
+        <div className="header-titulo-resultados">
+          <h1 style={{ margin: 0 }}>Relatório de Resultados</h1>
         </div>
         
-        {/* FILTRO DE TEMPO E CALENDÁRIO */}
         <div className="controles-filtro">
           <input 
             type="date" 
@@ -203,7 +187,6 @@ const Resultados = ({ aoVoltar }) => {
           </section>
         </div>
 
-        {/* NOVA SESSÃO: LISTA DE VENDAS DO DIA/MÊS */}
         <section className="card-lista-vendas">
           <h2><FaList /> Detalhamento de Vendas do Período</h2>
           <div className="tabela-vendas-container">
@@ -226,8 +209,14 @@ const Resultados = ({ aoVoltar }) => {
                       <td style={{ color: venda.status === 'Pendente' ? '#D32F2F' : '#2E7D32', fontWeight: 'bold' }}>
                         {venda.status === 'Pendente' ? 'Aguardando Pagamento' : (venda.data_pagamento || venda.data)}
                       </td>
-                      <td><strong>{venda.cliente}</strong></td>
-                      <td className="itens-td">{venda.itens}</td>
+                      <td><strong>{venda.nome_cliente || venda.cliente || 'Balcão'}</strong></td>
+                      
+                      <td className="itens-td">
+                        {Array.isArray(venda.itens) 
+                          ? venda.itens.map(item => `${item.quantidade}x ${item.produto_nome}`).join(', ') 
+                          : venda.itens || "Sem itens"}
+                      </td>
+                      
                       <td>
                         <span className={`badge-pagamento ${venda.pagamento.toLowerCase()}`}>
                           {venda.pagamento}
@@ -248,4 +237,4 @@ const Resultados = ({ aoVoltar }) => {
   );
 };
 
-export default Resultados;
+export default Resultados; 

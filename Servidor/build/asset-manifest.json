@@ -1,0 +1,14 @@
+{
+  "files": {
+    "main.css": "/static/css/main.9513fe3e.css",
+    "main.js": "/static/js/main.d803bc22.js",
+    "static/media/logo-topfrango.png": "/static/media/logo-topfrango.8c5319b92839c8f4f12e.png",
+    "index.html": "/index.html",
+    "main.9513fe3e.css.map": "/static/css/main.9513fe3e.css.map",
+    "main.d803bc22.js.map": "/static/js/main.d803bc22.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.9513fe3e.css",
+    "static/js/main.d803bc22.js"
+  ]
+}

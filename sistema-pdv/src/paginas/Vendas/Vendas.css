@@ -1,5 +1,3 @@
-/* Vendas.css */
-
 :root {
   --vermelho-topfrango: #D32F2F;
   --vermelho-hover: #B71C1C;
@@ -28,12 +26,17 @@
   flex-direction: column;
 }
 
-/* Cabeçalho com Botão Voltar */
+/* Cabeçalho de Produtos */
 .header-produtos {
   margin-bottom: 20px;
   display: flex;
   align-items: center;
-  gap: 20px; /* Espaço entre o botão e o título */
+  gap: 20px; 
+}
+
+/* NOVA CLASSE AQUI: Dá espaço para o menu flutuante lateral */
+.header-titulo-vendas {
+  margin-left: 60px;
 }
 
 .header-produtos h2 {
@@ -43,26 +46,6 @@
   gap: 10px;
   font-size: 1.5rem;
   margin: 0;
-}
-
-/* Estilo do Botão Voltar */
-.btn-voltar-topo {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  background-color: transparent;
-  border: 2px solid var(--vermelho-topfrango);
-  color: var(--vermelho-topfrango);
-  padding: 8px 15px;
-  border-radius: 20px; /* Redondo */
-  font-weight: bold;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-voltar-topo:hover {
-  background-color: var(--vermelho-topfrango);
-  color: white;
 }
 
 /* Grid de Produtos */
@@ -199,7 +182,7 @@
 
 .item-linha {
   display: grid;
-  grid-template-columns: 3fr 2fr 2fr 0.5fr;
+  grid-template-columns: 2.5fr 2.5fr 1.5fr 0.5fr; /* Ajuste para caber o input */
   align-items: center;
   background-color: #f8f8f8;
   padding: 10px;
@@ -323,8 +306,7 @@
   background-color: var(--vermelho-topfrango);
   color: white;
 }
-
-/* Adicione ou atualize estas classes no seu Vendas.css */
+.btn-finalizar:hover { background-color: var(--vermelho-hover); }
 
 .badge-unidade {
   position: absolute;
@@ -338,11 +320,6 @@
   font-weight: bold;
 }
 
-.card-produto {
-  position: relative; /* Para o badge funcionar */
-}
-
-/* Estilo para o campo de digitar o peso */
 .input-peso {
   width: 70px;
   padding: 5px;
@@ -354,15 +331,10 @@
   font-size: 0.9rem;
 }
 
-/* Remover setas do input number */
 .input-peso::-webkit-inner-spin-button,
 .input-peso::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
-}
-
-.item-linha {
-  grid-template-columns: 2.5fr 2.5fr 1.5fr 0.5fr; /* Ajuste para caber o input */
 }
 
 .display-distancia {
@@ -402,10 +374,8 @@
   background-color: #fff5f5;
 }
 
-/* Esconde as setinhas padrões do input number */
 .input-peso-venda::-webkit-inner-spin-button,
 .input-peso-venda::-webkit-outer-spin-button {
   -webkit-appearance: none;
   margin: 0;
-}
-.btn-finalizar:hover { background-color: var(--vermelho-hover); }
+} 

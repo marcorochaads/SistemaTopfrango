@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
 import './Pedidos.css';
-import { FaArrowLeft, FaCheckCircle, FaSearch, FaClock, FaUser, FaTimes } from 'react-icons/fa';
+import { FaCheckCircle, FaSearch, FaClock, FaUser, FaTimes, FaWhatsapp } from 'react-icons/fa';
 import ModalPagamento from '../../componentes/ModalPagamento/ModalPagamento';
 import { ConexaoContext } from '../../App'; 
 
-const Pedidos = ({ aoVoltar }) => {
+const Pedidos = () => {
   const [pedidosPendentes, setPedidosPendentes] = useState([]);
   const [pesquisa, setPesquisa] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -33,11 +33,17 @@ const Pedidos = ({ aoVoltar }) => {
   }, []);
 
   const finalizarBaixa = async (metodoPagamentoReal) => {
+    const agora = new Date().toLocaleString('pt-BR');
+
     try {
       const response = await fetch(`http://localhost:5000/api/vendas/${pedidoSelecionado.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'Pago', pagamento: metodoPagamentoReal })
+        body: JSON.stringify({ 
+          status: 'Pago', 
+          pagamento: metodoPagamentoReal,
+          data_pagamento: agora 
+        })
       });
 
       if (response.ok) {
@@ -54,20 +60,17 @@ const Pedidos = ({ aoVoltar }) => {
     }
   };
 
-  // --- NOVA FUNÇÃO: REMOVER APENAS UM ITEM ---
-  const removerItemDaVenda = async (pedidoId, textoItem) => {
-    const confirmacao = window.confirm(`Deseja realmente remover o item "${textoItem}"? O valor será descontado e o estoque devolvido.`);
+  const removerItemDaVenda = async (pedidoId, item) => {
+    const confirmacao = window.confirm(`Deseja realmente remover "${item.quantidade}x ${item.produto_nome}"? O valor será descontado e o estoque devolvido.`);
     if (!confirmacao) return;
 
     try {
-      const response = await fetch(`http://localhost:5000/api/vendas/${pedidoId}/remover-item`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ itemTexto: textoItem })
+      const response = await fetch(`http://localhost:5000/api/vendas/${pedidoId}/remover-item/${item.produto_id}`, {
+        method: 'DELETE',
       });
 
       if (response.ok) {
-        carregarPedidos(); // Recarrega a tela com o novo total e menos itens
+        carregarPedidos(); 
       } else {
         alert("Erro ao remover item da venda.");
       }
@@ -82,31 +85,23 @@ const Pedidos = ({ aoVoltar }) => {
     setIsModalOpen(true);
   };
 
-  const pedidosFiltrados = pedidosPendentes.filter(p => 
-    p.cliente.toLowerCase().includes(pesquisa.toLowerCase())
-  );
-
-  // Função para separar o texto corrido em uma lista (separando por vírgula que não esteja dentro de parênteses)
-  const formatarListaDeItens = (textoItens) => {
-    if (!textoItens) return [];
-    return textoItens.split(/,(?![^()]*\))/).map(i => i.trim()).filter(i => i !== '');
-  };
+  const pedidosFiltrados = pedidosPendentes.filter(p => {
+    const nomeDoCliente = p.nome_cliente || p.cliente || 'Balcão';
+    return nomeDoCliente.toLowerCase().includes(pesquisa.toLowerCase());
+  });
 
   return (
     <div className="container-pedidos">
       <header className="header-pedidos">
-        <div className="header-info">
-          <button className="btn-voltar-pedidos" onClick={aoVoltar}>
-            <FaArrowLeft /> Menu
-          </button>
-          <h1>Pedidos Pendentes (Fiado)</h1>
+        <div className="header-titulo-pedidos">
+          <h1 style={{ margin: 0 }}>Pedidos Pendentes (Fiado)</h1>
         </div>
         
         <div className="barra-pesquisa">
           <FaSearch className="icone-busca" />
           <input 
             type="text" 
-            placeholder="Buscar por cliente..." 
+            placeholder="Buscar por cliente" 
             value={pesquisa}
             onChange={(e) => setPesquisa(e.target.value)}
           />
@@ -131,25 +126,35 @@ const Pedidos = ({ aoVoltar }) => {
                 </div>
                 
                 <div className="card-corpo-pedido">
-                  <div className="info-cliente">
-                    <FaUser className="icone-cliente" />
-                    <strong>{pedido.cliente}</strong>
+                  <div className="info-cliente" style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
+                    <div>
+                      <FaUser className="icone-cliente" />
+                      <strong>{pedido.nome_cliente || pedido.cliente || 'Balcão'}</strong>
+                    </div>
+                    {pedido.telefone && (
+                      <div style={{ fontSize: '0.85rem', color: '#128C7E', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                        <FaWhatsapp /> {pedido.telefone}
+                      </div>
+                    )}
                   </div>
                   
-                  {/* --- LISTA DE ITENS INTERATIVA --- */}
-                  <div className="detalhes-itens-lista">
-                    {formatarListaDeItens(pedido.itens).map((item, index) => (
-                      <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '5px', borderRadius: '4px', marginBottom: '4px', fontSize: '0.9rem' }}>
-                        <span>{item}</span>
-                        <button 
-                          onClick={() => removerItemDaVenda(pedido.id, item)}
-                          style={{ background: 'transparent', border: 'none', color: '#dc3545', cursor: 'pointer', padding: '5px' }}
-                          title="Remover produto e devolver ao estoque"
-                        >
-                          <FaTimes />
-                        </button>
-                      </div>
-                    ))}
+                  <div className="detalhes-itens-lista" style={{ marginTop: '10px' }}>
+                    {Array.isArray(pedido.itens) ? (
+                      pedido.itens.map((item, index) => (
+                        <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '5px', borderRadius: '4px', marginBottom: '4px', fontSize: '0.9rem' }}>
+                          <span>{item.quantidade}x {item.produto_nome} <small>(R$ {item.subtotal.toFixed(2)})</small></span>
+                          <button 
+                            onClick={() => removerItemDaVenda(pedido.id, item)}
+                            style={{ background: 'transparent', border: 'none', color: '#dc3545', cursor: 'pointer', padding: '5px' }}
+                            title="Remover produto e devolver ao estoque"
+                          >
+                            <FaTimes />
+                          </button>
+                        </div>
+                      ))
+                    ) : (
+                      <span>{pedido.itens || 'Nenhum item'}</span>
+                    )}
                   </div>
 
                   <div className="valor-pedido" style={{ marginTop: '10px' }}>
@@ -182,4 +187,4 @@ const Pedidos = ({ aoVoltar }) => {
   );
 };
 
-export default Pedidos;
+export default Pedidos; 
