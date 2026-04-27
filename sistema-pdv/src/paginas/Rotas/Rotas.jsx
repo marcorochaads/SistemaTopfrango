@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import './Rotas.css';
-import { FaMapLocationDot, FaRoute, FaUser, FaHashtag, FaRoad, FaCheckDouble } from 'react-icons/fa6';
+import { 
+  FaMapLocationDot, FaRoute, FaUser, FaHashtag, FaRoad, 
+  FaCheckDouble, FaLocationDot, FaMagnifyingGlass, FaPhone, FaWhatsapp, FaMotorcycle 
+} from 'react-icons/fa6';
 import { MapContainer, TileLayer, Marker, Popup, useMap, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -34,15 +37,13 @@ const iconeChegada = L.divIcon({
 
 const RoutingControl = ({ sede, destino, setDistancia }) => {
   const map = useMap();
+  const routingControlRef = useRef(null);
 
   useEffect(() => {
-    if (!map || !destino) return;
+    if (!map) return;
 
-    const routingControl = L.Routing.control({
-      waypoints: [
-        L.latLng(sede[0], sede[1]),
-        L.latLng(destino[0], destino[1])
-      ],
+    routingControlRef.current = L.Routing.control({
+      waypoints: [], 
       lineOptions: { styles: [{ color: '#D32F2F', weight: 5 }] },
       addWaypoints: false,
       draggableWaypoints: false,
@@ -50,31 +51,67 @@ const RoutingControl = ({ sede, destino, setDistancia }) => {
       show: false, 
       createMarker: () => null, 
     }).on('routesfound', (e) => {
-      const summary = e.routes[0].summary;
-      setDistancia((summary.totalDistance / 1000).toFixed(2));
+      if (e.routes && e.routes[0]) {
+        const summary = e.routes[0].summary;
+        setDistancia((summary.totalDistance / 1000).toFixed(2));
+      }
     }).addTo(map);
 
-    return () => map.removeControl(routingControl);
-  }, [map, destino, sede, setDistancia]);
+    return () => {
+      if (map && routingControlRef.current) {
+        try {
+          map.removeControl(routingControlRef.current);
+        } catch (error) {
+          console.warn("Rota limpa com segurança.");
+        }
+      }
+    };
+  }, [map, setDistancia]);
+
+  useEffect(() => {
+    if (routingControlRef.current) {
+      if (destino && sede) {
+        routingControlRef.current.setWaypoints([
+          L.latLng(sede[0], sede[1]),
+          L.latLng(destino[0], destino[1])
+        ]);
+      } else {
+        routingControlRef.current.setWaypoints([]);
+      }
+    }
+  }, [destino, sede]);
 
   return null;
 };
 
 const Rotas = () => {
   const [pedidosPendentes, setPedidosPendentes] = useState([]);
+  const [pedidosEmRota, setPedidosEmRota] = useState([]);
   const [pedidoSelecionado, setPedidoSelecionado] = useState(null);
+  
   const [distancia, setDistancia] = useState('0.00');
   const [destino, setDestino] = useState(null);
+  const [endereco, setEndereco] = useState(''); 
+  const [telefone, setTelefone] = useState(''); 
   const [isModalOpen, setIsModalOpen] = useState(false); 
   
   const sedeTopFrango = [-4.853849, -39.577258]; 
+
+  const aplicarMascaraTelefone = (valor) => {
+    if (!valor) return '';
+    let v = String(valor).replace(/\D/g, ''); 
+    if (v.length > 11) v = v.slice(0, 11); 
+    v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
+    v = v.replace(/(\d)(\d{4})$/, '$1-$2');
+    return v;
+  };
 
   const carregarPedidos = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/vendas');
       const dados = await response.json();
-      const apenasPendentes = dados.filter(p => p.status === 'Pendente');
-      setPedidosPendentes(apenasPendentes);
+      setPedidosPendentes(dados.filter(p => p.status === 'Pendente'));
+      setPedidosEmRota(dados.filter(p => p.status === 'Em Rota'));
     } catch (error) {
       console.error("Erro ao buscar pedidos:", error);
     }
@@ -84,25 +121,71 @@ const Rotas = () => {
     carregarPedidos();
   }, []);
 
-  const handleSelectPedido = (id) => {
-    const encontrado = pedidosPendentes.find(p => p.id === parseInt(id));
+  const handleSelectPedido = (id, tipo) => {
+    const listaAtual = tipo === 'pendente' ? pedidosPendentes : pedidosEmRota;
+    const encontrado = listaAtual.find(p => p.id === parseInt(id));
+    
+    if (!encontrado) return;
+
     setPedidoSelecionado(encontrado);
+    setEndereco(encontrado.endereco || ''); 
+    
+    const telBanco = encontrado.telefone || encontrado.celular || '';
+    setTelefone(aplicarMascaraTelefone(telBanco)); 
+    
+    if (encontrado.lat && encontrado.lng) {
+        setDestino([parseFloat(encontrado.lat), parseFloat(encontrado.lng)]);
+    } else {
+        setDestino(null);
+        setDistancia('0.00');
+    }
   };
 
-  const finalizarBaixaRota = async (metodoPagamentoReal) => {
+  const buscarEnderecoNoMapa = async () => {
+    if (!endereco.trim()) {
+      alert("Por favor, digite um endereço para buscar.");
+      return;
+    }
     try {
+      const query = `${endereco}, Boa Viagem`;
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
+      const data = await res.json();
+      
+      if (data && data.length > 0) {
+        setDestino([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+      } else {
+        alert(`Não encontramos a rua "${endereco}" automaticamente.\n\nPor favor, clique no local exato no mapa.`);
+      }
+    } catch (error) {
+      console.error("Erro na busca de endereço:", error);
+    }
+  };
+
+  const despacharEntrega = async () => {
+    if (!destino) {
+        alert("Por favor, localize o endereço no mapa antes de despachar.");
+        return;
+    }
+
+    try {
+      const telefoneLimpo = telefone.replace(/\D/g, '');
+
       const response = await fetch(`http://localhost:5000/api/vendas/${pedidoSelecionado.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'Pago', pagamento: metodoPagamentoReal })
+        body: JSON.stringify({ 
+          status: 'Em Rota', 
+          pagamento: null,
+          endereco: endereco || 'Destino via Mapa', 
+          telefone: telefoneLimpo, 
+          lat: destino[0],
+          lng: destino[1]
+        })
       });
 
       if (response.ok) {
-        alert(`Entrega concluída! Pedido #${pedidoSelecionado.id} pago via ${metodoPagamentoReal}.`);
-        setIsModalOpen(false);
-        setPedidoSelecionado(null);
-        setDestino(null);
-        setDistancia('0.00');
+        alert(`Entrega despachada! O motoboy já pode sair.`);
+        resetarCampos();
         carregarPedidos(); 
       }
     } catch (error) {
@@ -110,15 +193,53 @@ const Rotas = () => {
     }
   };
 
+  const finalizarBaixaRota = async (metodoPagamentoReal) => {
+    try {
+      const telefoneLimpo = telefone.replace(/\D/g, '');
+      const response = await fetch(`http://localhost:5000/api/vendas/${pedidoSelecionado.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          status: 'Pago', 
+          pagamento: metodoPagamentoReal,
+          endereco: endereco,
+          telefone: telefoneLimpo, 
+          lat: destino[0],
+          lng: destino[1]
+        })
+      });
+
+      if (response.ok) {
+        alert(`Entrega concluída!`);
+        setIsModalOpen(false);
+        resetarCampos();
+        carregarPedidos(); 
+      }
+    } catch (error) {
+      alert("Erro ao conectar com o servidor.");
+    }
+  };
+
+  const resetarCampos = () => {
+    setPedidoSelecionado(null);
+    setEndereco('');
+    setTelefone('');
+    setDestino(null);
+    setDistancia('0.00');
+  };
+
   const MapEvents = () => {
     useMapEvents({
-      click(e) { setDestino([e.latlng.lat, e.latlng.lng]); },
+      click(e) { 
+        if(pedidoSelecionado && pedidoSelecionado.status === 'Pendente') {
+            setDestino([e.latlng.lat, e.latlng.lng]); 
+        }
+      },
     });
     return null;
   };
 
-  // Função para exibir o cliente corretamente (novo banco ou antigo)
-  const getNomeCliente = (pedido) => pedido.nome_cliente || pedido.cliente || 'Balcão';
+  const getNomeCliente = (pedido) => pedido.nome_cliente || pedido.cliente || 'Sem Nome';
 
   return (
     <div className="container-rotas">
@@ -133,16 +254,16 @@ const Rotas = () => {
         <div className="layout-rotas">
           
           <section className="card-info-entrega">
-            <h2><FaRoute /> Detalhes da Entrega</h2>
+            <h2><FaRoute /> Status e Despachos</h2>
             
-            <div className="campo-rota">
-              <label><FaHashtag /> Selecionar Pedido Pendente:</label>
+            <div className="campo-rota" style={{ padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+              <label><FaHashtag /> Aguardando Despacho:</label>
               <select 
                 className="select-pedido"
-                onChange={(e) => handleSelectPedido(e.target.value)}
-                value={pedidoSelecionado ? pedidoSelecionado.id : ""}
+                onChange={(e) => handleSelectPedido(e.target.value, 'pendente')}
+                value={pedidoSelecionado && pedidoSelecionado.status === 'Pendente' ? pedidoSelecionado.id : ""}
               >
-                <option value="" disabled>Escolha um pedido...</option>
+                <option value="" disabled>Escolha para traçar rota...</option>
                 {pedidosPendentes.map(p => (
                   <option key={p.id} value={p.id}>
                     #{p.id} - {getNomeCliente(p)}
@@ -151,62 +272,143 @@ const Rotas = () => {
               </select>
             </div>
 
+            <div className="campo-rota" style={{ padding: '10px', backgroundColor: '#e3f2fd', borderRadius: '8px', borderLeft: '4px solid #1976d2' }}>
+              <label style={{ color: '#1976d2' }}><FaMotorcycle /> Em Andamento (Na Rua):</label>
+              <select 
+                className="select-pedido"
+                onChange={(e) => handleSelectPedido(e.target.value, 'emRota')}
+                value={pedidoSelecionado && pedidoSelecionado.status === 'Em Rota' ? pedidoSelecionado.id : ""}
+              >
+                <option value="" disabled>Selecione para ver rota ou dar baixa...</option>
+                {pedidosEmRota.map(p => (
+                  <option key={p.id} value={p.id}>
+                    #{p.id} - {getNomeCliente(p)}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <hr style={{ margin: '20px 0', borderColor: '#eee' }} />
+
             <div className="campo-rota">
-              <label><FaUser /> Cliente:</label>
+              <label><FaUser /> Cliente Selecionado:</label>
               <div className="display-fake-input">
-                {pedidoSelecionado ? getNomeCliente(pedidoSelecionado) : "Selecione um pedido..."}
+                {pedidoSelecionado ? getNomeCliente(pedidoSelecionado) : "Nenhum pedido..."}
               </div>
             </div>
 
             <div className="campo-rota">
-              <label><FaRoad /> Distância Calculada:</label>
+              <label><FaPhone color="#D32F2F" /> Contato:</label>
+              <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+                <input
+                  type="text"
+                  placeholder="(88) 99999-9999"
+                  value={telefone}
+                  onChange={(e) => setTelefone(aplicarMascaraTelefone(e.target.value))}
+                  disabled={!pedidoSelecionado}
+                  style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}
+                />
+                
+                {/* BOTÃO DO WHATSAPP CORRIGIDO (VERDE E EM DESTAQUE) */}
+                <a 
+                  href={`https://wa.me/55${telefone.replace(/\D/g, '')}`} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="btn-whatsapp-novo"
+                  style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    gap: '8px',
+                    backgroundColor: '#25D366', 
+                    color: 'white', 
+                    textDecoration: 'none',
+                    padding: '10px',
+                    borderRadius: '5px',
+                    fontWeight: 'bold',
+                    fontSize: '14px',
+                    opacity: (!pedidoSelecionado || !telefone) ? 0.5 : 1, 
+                    pointerEvents: (!pedidoSelecionado || !telefone) ? 'none' : 'auto',
+                    transition: '0.3s'
+                  }}
+                >
+                  <FaWhatsapp size={20} /> Chamar no WhatsApp
+                </a>
+              </div>
+            </div>
+
+            <div className="campo-rota">
+              <label><FaLocationDot color="#D32F2F" /> Endereço:</label>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  placeholder="Digite o endereço ou clique no mapa"
+                  value={endereco}
+                  onChange={(e) => setEndereco(e.target.value)}
+                  disabled={!pedidoSelecionado || pedidoSelecionado.status === 'Em Rota'}
+                  style={{ flex: 1, padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}
+                />
+                <button 
+                  onClick={buscarEnderecoNoMapa} 
+                  disabled={!pedidoSelecionado || pedidoSelecionado.status === 'Em Rota'}
+                  className="btn-buscar-mapa"
+                >
+                  <FaMagnifyingGlass /> 
+                </button>
+              </div>
+            </div>
+
+            <div className="campo-rota">
+              <label><FaRoad /> Distância:</label>
               <div className="display-distancia">{distancia} KM</div>
             </div>
 
             {pedidoSelecionado && (
               <div className="resumo-pedido-entrega">
-                <strong>Itens:</strong> {Array.isArray(pedidoSelecionado.itens) 
-                    ? pedidoSelecionado.itens.map(item => `${item.quantidade}x ${item.produto_nome}`).join(', ') 
-                    : pedidoSelecionado.itens || "Sem itens"} <br/>
-                <strong>Total:</strong> R$ {pedidoSelecionado.total.toFixed(2)}
+                <strong>Total:</strong> <span style={{ color: '#D32F2F' }}>R$ {pedidoSelecionado.total.toFixed(2)}</span>
               </div>
             )}
 
-            <p className="instrucao-clique">
-              * Clique no destino no mapa para calcular o trajeto.
-            </p>
-
-            <button 
-              className="btn-tracar-rota" 
-              disabled={!pedidoSelecionado || !destino}
-              onClick={() => setIsModalOpen(true)} 
-            >
-              <FaCheckDouble /> Confirmar e Receber
-            </button>
+            {pedidoSelecionado && pedidoSelecionado.status === 'Pendente' ? (
+                <button 
+                  className="btn-tracar-rota" 
+                  disabled={!destino} 
+                  onClick={despacharEntrega} 
+                  style={{ backgroundColor: '#f39c12' }}
+                >
+                  <FaMotorcycle /> Despachar Entrega
+                </button>
+            ) : pedidoSelecionado && pedidoSelecionado.status === 'Em Rota' ? (
+                <button 
+                  className="btn-tracar-rota" 
+                  onClick={() => setIsModalOpen(true)} 
+                  style={{ backgroundColor: '#2e7d32' }}
+                >
+                  <FaCheckDouble /> Dar Baixa (Motoboy Voltou)
+                </button>
+            ) : null}
+            
           </section>
 
           <section className="card-mapa">
             <MapContainer center={sedeTopFrango} zoom={16} className="mapa-leaflet">
               <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
               <MapEvents />
-              
               <Marker position={sedeTopFrango} icon={iconeSede}>
-                <Popup>TopFrango</Popup>
+                <Popup>TopFrango (Sede)</Popup>
               </Marker>
-              
               {destino && (
                 <Marker position={destino} icon={iconeChegada}>
-                  <Popup>Destino</Popup>
+                  <Popup>{endereco || "Destino Marcado"}</Popup>
                 </Marker>
               )}
-              
               <RoutingControl sede={sedeTopFrango} destino={destino} setDistancia={setDistancia} />
             </MapContainer>
           </section>
         </div>
       </main>
 
-      {pedidoSelecionado && (
+      {pedidoSelecionado && isModalOpen && (
         <ModalPagamento 
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)} 

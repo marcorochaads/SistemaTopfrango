@@ -4,21 +4,21 @@ import {
   FaTrash, FaPlus, FaMinus, FaCheckCircle, 
   FaEraser, FaShoppingBasket, 
   FaHashtag, FaCalendarDay, FaWeightHanging,
-  FaBox, FaCashRegister, FaArrowRight
+  FaBox, FaCashRegister, FaArrowRight, FaMotorcycle
 } from 'react-icons/fa';
 import ModalPagamento from '../../componentes/ModalPagamento/ModalPagamento';
 import { ConexaoContext } from '../../App'; 
 
-// Recebendo a propriedade irParaCaixa passada pelo App.js
-const Vendas = ({ irParaCaixa }) => {
+const Vendas = ({ irParaCaixa, irParaRotas }) => {
   const [produtos, setProdutos] = useState([]);
   const [carrinho, setCarrinho] = useState([]);
   const [cliente, setCliente] = useState(''); 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [numeroVenda, setNumeroVenda] = useState(1); 
   const [caixaAberto, setCaixaAberto] = useState(true);
-  const { setErroConexao } = useContext(ConexaoContext);
+  const [isEntrega, setIsEntrega] = useState(false);
 
+  const { setErroConexao } = useContext(ConexaoContext);
   const dataAtual = new Date().toLocaleDateString('pt-BR');
 
   const carregarProdutos = async () => {
@@ -39,13 +39,11 @@ const Vendas = ({ irParaCaixa }) => {
       const res = await fetch('http://localhost:5000/api/vendas');
       if (res.ok) {
         const vendas = await res.json();
-        
         const vendasDeHoje = vendas.filter(venda => {
           if (!venda.data) return false;
           const dataDaVenda = venda.data.split(',')[0].trim(); 
           return dataDaVenda === dataAtual;
         });
-
         setNumeroVenda(vendasDeHoje.length + 1);
       }
     } catch (error) {
@@ -123,12 +121,10 @@ const Vendas = ({ irParaCaixa }) => {
 
   const alterarPesoManual = (id, valor) => {
     const prodOriginal = produtos.find(p => p.id === id);
-
     if (prodOriginal.qtd <= 0) {
       alert(`Produto esgotado no estoque!`);
       return;
     }
-
     setCarrinho(carrinho.map(item =>
       item.id === id ? { ...item, qtd: valor === '' ? '' : valor } : item
     ));
@@ -137,10 +133,12 @@ const Vendas = ({ irParaCaixa }) => {
   const novaVenda = () => {
     setCarrinho([]);
     setCliente('');
+    setIsEntrega(false); 
     setIsModalOpen(false);
   };
 
-  const confirmarPedido = async (metodoPagamento, telefoneCliente) => {
+  // Alterado: Adicionado 'telefoneOpcional'
+  const confirmarPedido = async (metodoPagamento, telefoneOpcional = null) => {
     const itensVazios = carrinho.some(item => item.unidade === 'kg' && (item.qtd === '' || parseFloat(item.qtd) <= 0));
     if (itensVazios) {
         alert("Preencha o peso (kg) de todos os itens antes de finalizar.");
@@ -159,13 +157,16 @@ const Vendas = ({ irParaCaixa }) => {
 
     const dadosVenda = {
       cliente_nome: cliente,
-      cliente_telefone: telefoneCliente || null, 
+      cliente_telefone: telefoneOpcional || null, // Alterado: Recebe o telefone do modal se existir
       usuario_id: 1, 
       total: totalGeral,
-      pagamento: metodoPagamento,
-      status: metodoPagamento === 'Pagar Depois' ? 'Pendente' : 'Pago',
+      pagamento: isEntrega ? 'Pagar Depois' : metodoPagamento, 
+      status: isEntrega ? 'Pendente' : (metodoPagamento === 'Pagar Depois' ? 'Pendente' : 'Pago'), 
       data: new Date().toLocaleString('pt-BR'),
-      itensArray: itensNormalizados 
+      itensArray: itensNormalizados,
+      tipo_venda: isEntrega ? 'Entrega' : 'Balcão',
+      endereco: '', 
+      status_entrega: isEntrega ? 'Pendente' : null
     };
 
     try {
@@ -177,11 +178,19 @@ const Vendas = ({ irParaCaixa }) => {
       
       if (!resVenda.ok) throw new Error("Erro ao salvar venda");
 
-      alert("Venda finalizada com sucesso!");
+      alert(isEntrega ? "Pedido salvo! Direcionando para as Rotas..." : "Venda finalizada com sucesso!");
       setErroConexao(false);
+      
+      const foiEntrega = isEntrega;
+      
       novaVenda();
       carregarProdutos(); 
       carregarProximoId(); 
+
+      if (foiEntrega && irParaRotas) {
+        irParaRotas();
+      }
+
     } catch (error) {
       console.error("Erro na finalização:", error);
       setErroConexao(true);
@@ -194,13 +203,11 @@ const Vendas = ({ irParaCaixa }) => {
     <div className="container-vendas">
       <section className="painel-catalogo">
         <header className="header-produtos" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
-          
           <div className="header-titulo-vendas" style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
             <h2 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px', lineHeight: '1' }}>
               <FaShoppingBasket /> PDV TopFrango
             </h2>
           </div>
-
           <div className="info-venda-topo" style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
               <FaHashtag /> Venda: <strong>{numeroVenda}</strong>
@@ -209,7 +216,6 @@ const Vendas = ({ irParaCaixa }) => {
               <FaCalendarDay /> {dataAtual}
             </span>
           </div>
-          
         </header>
         
         {!caixaAberto ? (
@@ -221,32 +227,19 @@ const Vendas = ({ irParaCaixa }) => {
             <FaCashRegister size={50} style={{ marginBottom: '15px' }} />
             <h2>Caixa Fechado</h2>
             <p>Você precisa abrir o caixa do dia na tela de "Caixa" antes de registrar vendas.</p>
-            
-            {/* O onClick agora chama a função irParaCaixa que veio do App.js */}
             <button 
               onClick={irParaCaixa} 
               style={{
-                marginTop: '20px',
-                padding: '12px 24px',
-                backgroundColor: '#d32f2f',
-                color: '#fff',
-                border: 'none',
-                borderRadius: '8px',
-                cursor: 'pointer',
-                fontWeight: 'bold',
-                fontSize: '16px',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '8px',
-                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-                transition: 'background-color 0.2s'
+                marginTop: '20px', padding: '12px 24px', backgroundColor: '#d32f2f', color: '#fff',
+                border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold',
+                fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)', transition: 'background-color 0.2s'
               }}
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#b71c1c'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#d32f2f'}
             >
               Ir para o Caixa <FaArrowRight />
             </button>
-            
           </div>
         ) : (
           <div className="grid-produtos">
@@ -258,21 +251,11 @@ const Vendas = ({ irParaCaixa }) => {
                 disabled={prod.qtd <= 0}
               >
                 <span className="tag-unidade">{prod.unidade.toUpperCase()}</span>
-                
                 {prod.unidade === 'kg' ? (
-                  <FaWeightHanging 
-                    className="icone-peso-kg" 
-                    size={26}
-                    color={prod.qtd <= 0 ? "#ffcccc" : "#D32F2F"} 
-                  />
+                  <FaWeightHanging className="icone-peso-kg" size={26} color={prod.qtd <= 0 ? "#ffcccc" : "#D32F2F"} />
                 ) : (
-                  <FaBox 
-                    className="icone-unidade" 
-                    size={26}
-                    color={prod.qtd <= 0 ? "#cccccc" : "#1976D2"} 
-                  />
+                  <FaBox className="icone-unidade" size={26} color={prod.qtd <= 0 ? "#cccccc" : "#1976D2"} />
                 )}
-
                 <span className="nome-prod">{prod.nome}</span>
                 <span className="preco-prod">
                   R$ {(prod.unidade === 'kg' ? prod.vKG : prod.vVenda).toFixed(2)}
@@ -299,7 +282,21 @@ const Vendas = ({ irParaCaixa }) => {
             value={cliente}
             onChange={(e) => setCliente(e.target.value)}
           />
+
+          <div style={{ marginTop: '15px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <input 
+              type="checkbox" 
+              id="checkEntrega"
+              checked={isEntrega} 
+              onChange={(e) => setIsEntrega(e.target.checked)} 
+              style={{ width: '18px', height: '18px', cursor: 'pointer' }}
+            />
+            <label htmlFor="checkEntrega" style={{ cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px', color: '#333' }}>
+              <FaMotorcycle color="#D32F2F" /> É para Entrega?
+            </label>
+          </div>
         </div>
+        
         <div className="lista-carrinho">
           <div className="itens-scroll">
             {carrinho.length === 0 ? (
@@ -348,8 +345,19 @@ const Vendas = ({ irParaCaixa }) => {
           </div>
           <div className="botoes-acao">
             <button className="btn-cancelar" onClick={novaVenda}><FaEraser /> Limpar</button>
-            <button className="btn-finalizar" onClick={() => setIsModalOpen(true)}
-              disabled={carrinho.length === 0 || totalGeral === 0 || !caixaAberto}><FaCheckCircle /> Finalizar</button>
+            <button 
+              className="btn-finalizar" 
+              onClick={() => {
+                if (isEntrega) {
+                  confirmarPedido('Pagar Depois'); 
+                } else {
+                  setIsModalOpen(true); 
+                }
+              }}
+              disabled={carrinho.length === 0 || totalGeral === 0 || !caixaAberto}
+            >
+              <FaCheckCircle /> {isEntrega ? "Ir p/ Entrega" : "Finalizar"}
+            </button>
           </div>
         </div>
       </aside>

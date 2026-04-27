@@ -1,0 +1,328 @@
+.container-cadastro-user {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-height: 100%; 
+  background-color: #F4F5F7;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  box-sizing: border-box;
+}
+
+
+.header-topfrango {
+  background-color: white;
+  padding: 20px 40px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  z-index: 2;
+}
+.header-titulo {
+  margin-left: 60px; 
+}
+
+.header-titulo h1 {
+  color: #333;
+  margin: 0;
+  font-size: 2rem;
+}
+
+/* Área de conteúdo onde ficam os cards */
+.conteudo-cadastro {
+  padding: 30px;
+  
+}
+
+
+.grid-cadastro-user {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 25px;
+  align-items: start;
+}
+
+/* Estilo padrão de Card TopFrango */
+.painel-formulario, 
+.painel-lista {
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+}
+
+.painel-formulario h2, 
+.painel-lista h2 {
+  font-size: 1.2rem;
+  color: #333;
+  margin-top: 0;
+  margin-bottom: 25px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* --- FORMULÁRIO --- */
+.form-cadastro-user {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.bloco-dados-func, 
+.bloco-autorizacao {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.bloco-dados-func {
+  padding-bottom: 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+/* Destacando levemente a área do gerente */
+.bloco-autorizacao {
+  background: #fafafa;
+  padding: 15px;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.bloco-dados-func h3, 
+.bloco-autorizacao h3 {
+  font-size: 0.95rem;
+  color: #555;
+  margin: 0 0 5px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bloco-autorizacao p {
+  font-size: 0.8rem;
+  color: #999;
+  margin: 0 0 10px 0;
+  font-style: italic;
+}
+
+/* Inputs limpos e modernos */
+.input-user {
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  color: #333;
+  outline: none;
+  background-color: #fff;
+  transition: border-color 0.3s, box-shadow 0.3s;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.input-user:focus {
+  border-color: #D32F2F;
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);
+}
+
+/* Botão Vermelho TopFrango */
+.btn-finalizar-cadastro {
+  background-color: #D32F2F;
+  color: white;
+  border: none;
+  padding: 15px;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.btn-finalizar-cadastro:hover {
+  background-color: #b71c1c;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(211, 47, 47, 0.3);
+}
+
+/* --- TABELA DE USUÁRIOS --- */
+.tabela-container-user {
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 8px;
+}
+
+.tabela-usuarios {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.tabela-usuarios th {
+  background-color: #fcfcfc;
+  padding: 15px;
+  font-weight: 600;
+  color: #555;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  border-bottom: 2px solid #f0f0f0;
+  font-size: 0.9rem;
+}
+
+.tabela-usuarios td {
+  padding: 15px;
+  border-bottom: 1px solid #f5f5f5;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.tabela-usuarios tr:hover td {
+  background-color: #fafafa;
+}
+
+.linha-vazia {
+  text-align: center;
+  padding: 30px;
+  color: #888;
+  font-style: italic;
+}
+
+/* Badges de Nível */
+.badge-nivel {
+  padding: 5px 12px;
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: bold;
+  display: inline-block;
+  text-transform: capitalize;
+}
+
+.badge-nivel.admin { 
+  background-color: #ffebee; 
+  color: #D32F2F; 
+}
+.badge-nivel.caixa { 
+  background-color: #e3f2fd; 
+  color: #1976d2; 
+} 
+
+/* --- AÇÕES DA TABELA --- */
+.acoes-td {
+  display: flex;
+  justify-content: center;
+}
+
+.btn-acao-user {
+  background: none;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 1.1rem;
+  padding: 8px;
+  border-radius: 5px;
+}
+
+.btn-acao-user.editar { 
+  color: #1976D2; 
+  background-color: #E3F2FD; 
+}
+
+.btn-acao-user.editar:hover { 
+  background-color: #1976D2; 
+  color: white; 
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(3px);
+}
+
+.modal-edicao-user {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  border-top: 5px solid #D32F2F;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-edicao-user h2 {
+  margin-top: 0;
+  margin-bottom: 25px;
+  font-size: 1.4rem;
+  color: #333;
+}
+
+.modal-edicao-user label {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #555;
+  margin-top: 5px;
+}
+
+.modal-acoes {
+  display: flex;
+  justify-content: flex-end;
+  gap: 15px;
+  margin-top: 25px;
+}
+
+.modal-acoes button {
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  border: none;
+  transition: 0.2s;
+}
+
+.btn-cancelar {
+  background-color: #f0f0f0;
+  color: #555;
+}
+
+.btn-cancelar:hover {
+  background-color: #e0e0e0;
+}
+
+.btn-salvar-edicao {
+  background-color: #D32F2F;
+  color: white;
+}
+
+.btn-salvar-edicao:hover {
+  background-color: #b71c1c;
+} 
+
+.btn-acao-user.excluir { 
+  color: #D32F2F; 
+  background-color: #FFEBEE; 
+  margin-left: 8px;
+}
+
+.btn-acao-user.excluir:hover { 
+  background-color: #D32F2F; 
+  color: white; 
+}
+
+/* Responsividade */
+@media (max-width: 900px) {
+  .grid-cadastro-user {
+    grid-template-columns: 1fr;
+  }
+}

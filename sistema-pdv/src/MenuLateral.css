@@ -1,0 +1,152 @@
+/* Fundo principal do sistema */
+.layout-app {
+  display: block;
+  min-height: 100vh;
+  background-color: #f0f2f5;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+/* Botão flutuante discreto (Hambúrguer) */
+.btn-hamburguer-flutuante {
+  position: fixed;
+  top: 15px;
+  left: 15px;
+  background: #d32f2f;
+  color: white;
+  border: none;
+  width: 45px;
+  height: 45px;
+  border-radius: 50%; 
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  z-index: 1001; 
+  transition: transform 0.2s;
+}
+
+.btn-hamburguer-flutuante:hover {
+  transform: scale(1.1);
+  background: #b71c1c;
+}
+
+/* Menu lateral (Gaveta) */
+.menu-lateral {
+  position: fixed;
+  top: 0;
+  left: -320px; /* Escondido */
+  width: 300px;
+  height: 100vh;
+  background-color: #f0f2f5; /* Mesmo fundo do sistema para os cards brancos saltarem */
+  box-shadow: 4px 0 20px rgba(0,0,0,0.15);
+  transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 2000;
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-lateral.aberto {
+  left: 0;
+}
+
+/* Overlay escuro de fundo */
+.overlay-menu {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px); /* Dá um desfoque chique no fundo */
+  z-index: 1500;
+}
+
+/* Cabeçalho do Menu Lateral */
+.cabecalho-menu {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  background-color: transparent;
+}
+
+.cabecalho-menu h3 {
+  margin: 0;
+  color: #1c3144;
+  font-size: 20px;
+}
+
+/* Botão de Fechar sem borda feia */
+.btn-fechar-menu {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  color: #888;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.2s;
+}
+
+.btn-fechar-menu:hover {
+  color: #d32f2f;
+}
+
+/* Lista de botões */
+.lista-menu {
+  padding: 0 20px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px; /* Espaço entre os cards */
+  overflow-y: auto;
+}
+
+/* --- OS CARDS DO MENU (Igual à sua foto 1) --- */
+.menu-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: #ffffff; /* Fundo branco */
+  padding: 15px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Sombra suave */
+  transition: all 0.2s ease-in-out;
+  border-left: 4px solid transparent;
+  color: #1c3144; /* Cor escura para o texto inativo */
+}
+
+.menu-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transform: translateY(-2px); /* Efeito de pular ao passar o mouse */
+}
+
+/* Card Ativo (Vermelho) */
+.menu-card.ativo {
+  border-left: 5px solid #d32f2f;
+  color: #d32f2f;
+}
+
+.menu-textos {
+  display: flex;
+  flex-direction: column;
+}
+
+.menu-titulo {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.menu-subtitulo {
+  font-size: 12px;
+  color: #888;
+  margin-top: 3px;
+}
+
+.menu-icone {
+  font-size: 18px;
+}

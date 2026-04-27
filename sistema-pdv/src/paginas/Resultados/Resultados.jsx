@@ -86,6 +86,11 @@ const Resultados = () => {
 
   const eficiencia = totalBruto > 0 ? ((totalLiquido / totalBruto) * 100).toFixed(1) : 0;
 
+  // Função para deixar o valor em formato de Moeda (R$ 1.234,00)
+  const formatarMoeda = (valor) => {
+    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  };
+
   return (
     <div className="container-resultados">
       <header className="header-resultados">
@@ -123,7 +128,7 @@ const Resultados = () => {
             <div className="resumo-icon"><FaArrowTrendUp /></div>
             <div className="resumo-texto">
               <span>Total Bruto {filtro === 'dia' ? `(${dataBuscaBR})` : `(${mesBuscaBR})`}</span>
-              <h3>R$ {totalBruto.toFixed(2)}</h3>
+              <h3>{formatarMoeda(totalBruto)}</h3>
             </div>
           </div>
 
@@ -131,7 +136,7 @@ const Resultados = () => {
             <div className="resumo-icon"><FaArrowTrendDown /></div>
             <div className="resumo-texto">
               <span>Retiradas (Sangrias)</span>
-              <h3>R$ {totalRetiradas.toFixed(2)}</h3>
+              <h3>{formatarMoeda(totalRetiradas)}</h3>
             </div>
           </div>
 
@@ -139,7 +144,7 @@ const Resultados = () => {
             <div className="resumo-icon"><FaWallet /></div>
             <div className="resumo-texto">
               <span>Saldo em Caixa</span>
-              <h3>R$ {totalLiquido.toFixed(2)}</h3>
+              <h3>{formatarMoeda(totalLiquido)}</h3>
             </div>
           </div>
         </section>
@@ -153,10 +158,10 @@ const Resultados = () => {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" />
                   <YAxis />
-                  <Tooltip cursor={{fill: '#f5f5f5'}} formatter={(value) => `R$ ${value.toFixed(2)}`} />
+                  <Tooltip cursor={{fill: '#f5f5f5'}} formatter={(value) => formatarMoeda(value)} />
                   <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
                     {dadosGrafico.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? '#D32F2F' : index === 1 ? '#333' : '#777'} />
+                      <Cell key={`cell-${index}`} fill={index === 0 ? '#2fd33d' : index === 1 ? '#1976d2' : '#2E7D32'} />
                     ))}
                   </Bar>
                 </BarChart>
@@ -168,15 +173,15 @@ const Resultados = () => {
             <h2>Resumo Operacional</h2>
             <div className="linha-detalhe">
               <span>Total de Vendas Pix:</span>
-              <strong>R$ {dadosGrafico[0].valor.toFixed(2)}</strong>
+              <strong>{formatarMoeda(dadosGrafico[0].valor)}</strong>
             </div>
             <div className="linha-detalhe">
               <span>Total de Vendas Cartão:</span>
-              <strong>R$ {dadosGrafico[1].valor.toFixed(2)}</strong>
+              <strong>{formatarMoeda(dadosGrafico[1].valor)}</strong>
             </div>
             <div className="linha-detalhe">
               <span>Total de Vendas Dinheiro:</span>
-              <strong>R$ {dadosGrafico[2].valor.toFixed(2)}</strong>
+              <strong>{formatarMoeda(dadosGrafico[2].valor)}</strong>
             </div>
             <hr />
             <div className="linha-detalhe total">
@@ -206,8 +211,10 @@ const Resultados = () => {
                   {vendasFiltradasTabela.slice().reverse().map((venda) => (
                     <tr key={venda.id}>
                       <td>{venda.data}</td>
-                      <td style={{ color: venda.status === 'Pendente' ? '#D32F2F' : '#2E7D32', fontWeight: 'bold' }}>
-                        {venda.status === 'Pendente' ? 'Aguardando Pagamento' : (venda.data_pagamento || venda.data)}
+                      <td style={{ color: (venda.status === 'Pendente' || venda.status === 'Em Rota') ? '#D32F2F' : '#2E7D32', fontWeight: 'bold' }}>
+                        {venda.status === 'Pendente' ? 'Aguardando Pagamento' : 
+                         venda.status === 'Em Rota' ? 'Na Rua (Aguardando)' : 
+                         (venda.data_pagamento || venda.data)}
                       </td>
                       <td><strong>{venda.nome_cliente || venda.cliente || 'Balcão'}</strong></td>
                       
@@ -218,11 +225,11 @@ const Resultados = () => {
                       </td>
                       
                       <td>
-                        <span className={`badge-pagamento ${venda.pagamento.toLowerCase()}`}>
-                          {venda.pagamento}
+                        <span className={`badge-pagamento ${venda.pagamento?.toLowerCase() || 'pendente'}`}>
+                          {venda.pagamento || 'A receber'}
                         </span>
                       </td>
-                      <td className="valor-td">R$ {venda.total.toFixed(2)}</td>
+                      <td className="valor-td">{formatarMoeda(venda.total)}</td>
                     </tr>
                   ))}
                 </tbody>

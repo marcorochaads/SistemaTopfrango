@@ -28,10 +28,10 @@
   display: flex;
   flex-direction: column;
   border-right: 1px solid #e0e0e0;
-  padding: 30px 0; /* Diminuído levemente para caber mais botões */
+  padding: 30px 0;
   box-shadow: 2px 0 10px rgba(0,0,0,0.05);
   z-index: 2;
-  overflow-y: auto; /* Permite rolar se a tela for pequena */
+  overflow-y: auto;
   overflow-x: hidden;
 }
 
@@ -49,7 +49,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 40px; /* Ajustado para dar mais espaço aos botões */
+  margin-bottom: 40px;
   color: var(--texto-escuro);
 }
 
@@ -80,7 +80,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px; /* Reduzido de 15px para 12px para encaixar o 7º botão perfeitamente */
+  gap: 12px;
   width: 100%;
 }
 
@@ -121,84 +121,227 @@
   color: var(--vermelho-topfrango);
 }
 
+/* --- BOTÃO DE SAIR --- */
+.btn-sair {
+  margin-top: 20px; 
+  border-left: 4px solid var(--vermelho-topfrango);
+  color: var(--vermelho-topfrango); 
+}
+
+.btn-sair:hover {
+  background-color: #fff5f5; 
+  transform: translateX(5px);
+  box-shadow: 0 6px 20px rgba(211, 47, 47, 0.15); 
+} 
+
 .rodape-sidebar {
-  margin-top: auto; /* Empurra para o final da tela */
+  margin-top: auto; 
   padding-top: 20px;
   text-align: center;
   font-size: 0.8rem;
   color: #999;
 }
 
-/* --- ÁREA PRINCIPAL --- */
+/* --- NOVA ÁREA PRINCIPAL (DASHBOARD) --- */
 .area-principal {
   flex: 1;
+  background: #f4f6f8; 
+  padding: 30px 40px;
+  overflow-y: auto;
+}
+
+.dashboard-conteudo {
+  max-width: 1100px;
+  margin: 0 auto;
   display: flex;
-  justify-content: center; /* Centraliza horizontalmente */
-  align-items: center;     /* Centraliza verticalmente */
-  background: linear-gradient(135deg, #ffffff 0%, #f4f4f9 100%);
+  flex-direction: column;
+  gap: 30px;
 }
 
-.conteudo-centro {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  width: 80%;
-  max-width: 900px;
-}
-
-/* Texto de Boas vindas */
-.texto-boas-vindas {
-  flex: 1;
-}
-
-.texto-boas-vindas h2 {
-  font-size: 1.5rem;
-  color: var(--texto-claro);
-  font-weight: normal;
+.dashboard-header h1 {
   margin: 0;
+  color: var(--texto-escuro);
+  font-size: 2.2rem;
 }
 
-.texto-boas-vindas h1 {
-  font-size: 3rem;
-  color: var(--vermelho-topfrango);
-  margin: 5px 0 15px 0;
-  line-height: 1;
-}
-
-.texto-boas-vindas p {
+.dashboard-header p {
+  margin: 5px 0 0 0;
   color: var(--texto-claro);
   font-size: 1.1rem;
 }
 
-/* Área da Logo na Direita */
-.area-logo-direita {
-  flex: 1;
+/* --- CARDS DE ESTATÍSTICA --- */
+.cards-resumo {
   display: flex;
-  justify-content: flex-end; /* Joga a logo para a direita */
+  gap: 20px;
+  justify-content: space-between;
 }
 
-.circulo-logo {
-  width: 250px;
-  height: 250px;
-  background-color: var(--branco);
+.card-estatistica {
+  flex: 1;
+  background: var(--branco);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  border: 1px solid #eee;
+}
+
+.card-icone {
+  width: 60px;
+  height: 60px;
   border-radius: 50%;
+  background-color: rgba(211, 47, 47, 0.1);
+  color: var(--vermelho-topfrango);
   display: flex;
   justify-content: center;
   align-items: center;
-  box-shadow: 0 10px 30px rgba(211, 47, 47, 0.15); /* Sombra avermelhada */
-  border: 4px solid var(--vermelho-topfrango);
-  
-  /* Estilo do texto provisório */
-  color: var(--vermelho-topfrango);
-  font-weight: bold;
-  font-size: 1.5rem;
-  letter-spacing: 2px;
+  font-size: 1.8rem;
 }
 
-/* Quando colocar a imagem real, use essa classe no img */
-.circulo-logo img {
+.card-icone.verde {
+  background-color: rgba(46, 125, 50, 0.1);
+  color: #2E7D32;
+}
+
+.card-icone.azul {
+  background-color: rgba(2, 119, 189, 0.1);
+  color: #0277bd;
+}
+
+.card-info span {
+  display: block;
+  font-size: 0.95rem;
+  color: var(--texto-claro);
+  margin-bottom: 5px;
+}
+
+.card-info h3 {
+  margin: 0;
+  font-size: 1.8rem;
+  color: var(--texto-escuro);
+}
+
+/* --- PAINÉIS INFERIORES --- */
+.paineis-inferiores {
+  display: flex;
+  gap: 20px;
+}
+
+.painel {
+  background: var(--branco);
+  border-radius: 12px;
+  padding: 25px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+  border: 1px solid #eee;
+}
+
+.painel-header {
+  margin-bottom: 20px;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 10px;
+}
+
+.painel-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  color: var(--texto-escuro);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Painel Mais Vendidos */
+.produtos-top {
+  flex: 1.5; 
+}
+
+.lista-top-produtos {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.lista-top-produtos li {
+  display: flex;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px dashed #eee;
+}
+
+.lista-top-produtos li:last-child {
+  border-bottom: none;
+}
+
+.posicao {
+  font-weight: bold;
+  color: var(--vermelho-topfrango);
+  width: 40px;
+  font-size: 1.1rem;
+}
+
+.nome-produto {
+  flex: 1;
+  color: var(--texto-escuro);
+  font-weight: 500;
+}
+
+.qtd-produto {
+  background: #f0f0f0;
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  color: var(--texto-claro);
+  font-weight: bold;
+}
+
+/* Painel Progresso/Meta */
+.meta-mes {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.conteudo-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.texto-meta {
+  color: var(--texto-claro);
+  margin-bottom: 20px;
+  font-size: 1.05rem;
+}
+
+.texto-meta strong {
+  color: #2E7D32;
+  font-size: 1.3rem;
+}
+
+.barra-fundo {
   width: 100%;
+  height: 20px;
+  background-color: #eee;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.barra-progresso {
   height: 100%;
-  object-fit: cover; 
-  border-radius: 50%;
+  background: linear-gradient(90deg, var(--vermelho-topfrango) 0%, #ff5252 100%);
+  border-radius: 10px;
+  transition: width 1s ease-in-out;
+}
+
+.detalhes-meta {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #888;
+  font-weight: bold;
 }

@@ -14,10 +14,6 @@ let db;
 const DB_NAME = './topfrango.db';
 const BACKUP_DIR = path.join(__dirname, 'backups');
 
-// ==========================================
-//    FUNÇÕES DE BACKUP (LÓGICA)
-// ==========================================
-
 const realizarBackup = () => {
     const agora = new Date();
     const dataFmt = agora.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
@@ -46,21 +42,15 @@ const limparBackupsAntigos = () => {
     });
 };
 
-// ==========================================
-//    INICIALIZAÇÃO DO BANCO (NORMALIZADO)
-// ==========================================
-
 (async () => {
     db = await open({
         filename: DB_NAME,
         driver: sqlite3.Database
     });
 
-    // Ativa o suporte a Chaves Estrangeiras (FK) no SQLite (Boas Práticas)
     await db.exec('PRAGMA foreign_keys = ON;');
 
     await db.exec(`
-        -- 1. Tabela de Usuários
         CREATE TABLE IF NOT EXISTS usuarios (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT,
@@ -69,14 +59,12 @@ const limparBackupsAntigos = () => {
             nivel TEXT
         );
 
-        -- 2. Tabela de Clientes (2FN: Entidade Separada)
         CREATE TABLE IF NOT EXISTS clientes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
             telefone TEXT
         );
 
-        -- 3. Tabela de Produtos
         CREATE TABLE IF NOT EXISTS produtos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             nome TEXT NOT NULL,
@@ -87,7 +75,6 @@ const limparBackupsAntigos = () => {
             unidade TEXT NOT NULL
         );
 
-        -- 4. Tabela de Vendas (FKs aplicadas corretamente)
         CREATE TABLE IF NOT EXISTS vendas (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             cliente_id INTEGER,
@@ -101,19 +88,17 @@ const limparBackupsAntigos = () => {
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         );
 
-        -- 5. Tabela de Itens da Venda (1FN: Sem listas em campos)
         CREATE TABLE IF NOT EXISTS itens_venda (
             venda_id INTEGER NOT NULL,
             produto_id INTEGER NOT NULL,
             quantidade REAL NOT NULL,
-            preco_unitario REAL NOT NULL, -- 3FN: Mantém o valor histórico
+            preco_unitario REAL NOT NULL,
             subtotal REAL NOT NULL,
             PRIMARY KEY (venda_id, produto_id),
             FOREIGN KEY (venda_id) REFERENCES vendas(id) ON DELETE CASCADE,
             FOREIGN KEY (produto_id) REFERENCES produtos(id)
         );
 
-        -- 6. Tabela de Sangrias (Vinculada ao Usuário)
         CREATE TABLE IF NOT EXISTS sangrias (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario_id INTEGER,
@@ -123,7 +108,6 @@ const limparBackupsAntigos = () => {
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         );
 
-        -- 7. Tabela de Batimentos (Vinculada ao Usuário)
         CREATE TABLE IF NOT EXISTS batimentos (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario_id INTEGER,
@@ -137,7 +121,35 @@ const limparBackupsAntigos = () => {
             status TEXT,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         );
+
+        CREATE TABLE IF NOT EXISTS aberturas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            usuario_id INTEGER,
+            valor REAL NOT NULL,
+            data TEXT,
+            FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
+        );
     `);
+
+    // ==============================================================
+    // ATUALIZAÇÃO AUTOMÁTICA DA TABELA DE VENDAS
+    // ==============================================================
+    const colunasVendas = await db.all("PRAGMA table_info(vendas)");
+    const nomesColunasVendas = colunasVendas.map(c => c.name);
+
+    if (!nomesColunasVendas.includes('endereco')) {
+        await db.exec("ALTER TABLE vendas ADD COLUMN endereco TEXT;");
+    }
+    if (!nomesColunasVendas.includes('telefone_entrega')) {
+        await db.exec("ALTER TABLE vendas ADD COLUMN telefone_entrega TEXT;");
+    }
+    if (!nomesColunasVendas.includes('lat')) {
+        await db.exec("ALTER TABLE vendas ADD COLUMN lat REAL;");
+    }
+    if (!nomesColunasVendas.includes('lng')) {
+        await db.exec("ALTER TABLE vendas ADD COLUMN lng REAL;");
+    }
+    // ==============================================================
 
     const qtdUsuarios = await db.get('SELECT COUNT(*) as count FROM usuarios');
     if (qtdUsuarios.count === 0) {
@@ -152,81 +164,101 @@ const limparBackupsAntigos = () => {
     }
 
     console.log("✅ Banco de Dados Normalizado Pronto.");
-    console.log("🔄 Executando backup de segurança de inicialização...");
     realizarBackup();
 })();
 
 cron.schedule('0 15 * * *', () => {
-    console.log("⏰ Horário agendado (15:00). Iniciando backup diário...");
     realizarBackup();
 });
-
-// ==========================================
-//             ROTAS DO SISTEMA
-// ==========================================
 
 app.get('/api/backup/download', (req, res) => {
     res.download(DB_NAME, 'backup-manual-topfrango.sqlite');
 });
 
-// ================= Vendas (REFORMULADO) =================
+// ==========================================
+// ROTAS DE ABERTURA DE CAIXA
+// ==========================================
+
+app.get('/api/aberturas', async (req, res) => {
+    try {
+        const aberturas = await db.all('SELECT * FROM aberturas ORDER BY id DESC');
+        res.json(aberturas);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.post('/api/aberturas', async (req, res) => {
+    const { usuario_id, valor, data } = req.body;
+    const data_abertura = data || new Date().toLocaleString('pt-BR');
+    
+    try {
+        await db.run('INSERT INTO aberturas (usuario_id, valor, data) VALUES (?, ?, ?)', [usuario_id || 1, valor, data_abertura]);
+        res.status(201).json({ message: "Abertura salva com sucesso!" });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ==========================================
+// ROTA CORRIGIDA: SALVAR VENDA COM CLIENTE_ID E TELEFONE
+// ==========================================
 app.post('/api/vendas', async (req, res) => {
-    // FRONT-END AGORA PRECISA MANDAR: cliente_nome, usuario_id e um ARRAY de itens
-    const { cliente_nome, usuario_id, total, pagamento, status, data, itensArray } = req.body;
+    // Agora capturamos o cliente_id e a variável telefone também!
+    const { cliente_id, cliente_nome, cliente_telefone, telefone, usuario_id, total, pagamento, status, data, itensArray } = req.body;
     
     const data_pedido = data || new Date().toLocaleString('pt-BR'); 
     const data_pag = status === 'Pago' ? data_pedido : null; 
 
     try {
-        await db.run('BEGIN TRANSACTION'); // Garante que tudo salva ou nada salva
+        await db.run('BEGIN TRANSACTION');
 
-        // 🌟 NOVIDADE (2FN): Auto-cadastro do Cliente
-        let idDoCliente = null;
-        if (cliente_nome && cliente_nome.trim() !== '') {
-            const resultCliente = await db.run('INSERT INTO clientes (nome) VALUES (?)', [cliente_nome]);
+        let idDoCliente = cliente_id || null;
+        let telefoneFinal = cliente_telefone || telefone || null;
+
+        // Se o front enviou nome/telefone soltos, mas não enviou o ID, criamos um cliente novo
+        if (!idDoCliente && ((cliente_nome && cliente_nome.trim() !== '') || (telefoneFinal && telefoneFinal.trim() !== ''))) {
+            const nomeParaSalvar = cliente_nome || 'Cliente Fiado';
+            
+            const resultCliente = await db.run(
+                'INSERT INTO clientes (nome, telefone) VALUES (?, ?)', 
+                [nomeParaSalvar, telefoneFinal]
+            );
             idDoCliente = resultCliente.lastID; 
         }
 
-        // 1. Insere a venda com a referência do cliente correto
+        // Salvamos também o "telefone_entrega" para garantir que o número fique preso no pedido
         const resultVenda = await db.run(
-            'INSERT INTO vendas (cliente_id, usuario_id, total, pagamento, status, data, data_pagamento) VALUES (?, ?, ?, ?, ?, ?, ?)', 
-            [idDoCliente, usuario_id || 1, total, pagamento, status, data_pedido, data_pag]
+            'INSERT INTO vendas (cliente_id, usuario_id, total, pagamento, status, data, data_pagamento, telefone_entrega) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
+            [idDoCliente, usuario_id || 1, total, pagamento, status, data_pedido, data_pag, telefoneFinal]
         );
         const vendaId = resultVenda.lastID;
 
-        // 2. Insere os itens um por um (1FN Aplicada)
         if (itensArray && itensArray.length > 0) {
             for (let item of itensArray) {
                 await db.run(
                     'INSERT INTO itens_venda (venda_id, produto_id, quantidade, preco_unitario, subtotal) VALUES (?, ?, ?, ?, ?)',
                     [vendaId, item.produto_id, item.quantidade, item.preco_unitario, item.subtotal]
                 );
-                // Já dá baixa no estoque aqui mesmo!
                 await db.run('UPDATE produtos SET qtd = qtd - ? WHERE id = ?', [item.quantidade, item.produto_id]);
             }
         }
 
         await db.run('COMMIT');
-        res.status(201).json({ message: "Venda salva com sucesso no modelo normalizado!" });
+        res.status(201).json({ message: "Venda salva com sucesso!" });
     } catch (e) { 
         await db.run('ROLLBACK');
-        console.error("Erro na venda:", e.message);
         res.status(500).json({ error: e.message }); 
     }
 });
 
-// Busca as vendas e junta com os itens (JOIN)
+// BUSCAR VENDAS (Já estava certo, mas agora tem dados pra puxar)
 app.get('/api/vendas', async (req, res) => {
     try {
         const vendas = await db.all(`
-            SELECT v.*, c.nome as nome_cliente, u.nome as nome_vendedor 
+            SELECT v.*, c.nome as nome_cliente, COALESCE(v.telefone_entrega, c.telefone) as telefone, u.nome as nome_vendedor 
             FROM vendas v
             LEFT JOIN clientes c ON v.cliente_id = c.id
             LEFT JOIN usuarios u ON v.usuario_id = u.id
             ORDER BY v.id DESC
         `);
 
-        // Busca os itens de cada venda para remontar o objeto para o React
         for (let venda of vendas) {
             const itens = await db.all(`
                 SELECT iv.*, p.nome as produto_nome 
@@ -244,49 +276,69 @@ app.get('/api/vendas', async (req, res) => {
 });
 
 app.put('/api/vendas/:id', async (req, res) => {
-    // ... (A lógica de atualizar status para Pago continua a mesma)
-    const { status, pagamento } = req.body;
+    const { status, pagamento, endereco, telefone, lat, lng } = req.body;
     const { id } = req.params;
     try {
+        const atual = await db.get('SELECT * FROM vendas WHERE id = ?', [id]);
+        if (!atual) return res.status(404).json({ error: "Pedido não encontrado" });
+
+        const novoEndereco = endereco !== undefined ? endereco : atual.endereco;
+        const novoTelefone = telefone !== undefined ? telefone : atual.telefone_entrega;
+        const novaLat = lat !== undefined ? lat : atual.lat;
+        const novaLng = lng !== undefined ? lng : atual.lng;
+
         if (status === 'Pago') {
             const momentoPagamento = new Date().toLocaleString('pt-BR');
-            await db.run('UPDATE vendas SET status = ?, pagamento = ?, data_pagamento = ? WHERE id = ?', [status, pagamento, momentoPagamento, id]);
+            await db.run(
+                'UPDATE vendas SET status = ?, pagamento = ?, data_pagamento = ?, endereco = ?, telefone_entrega = ?, lat = ?, lng = ? WHERE id = ?', 
+                [status, pagamento, momentoPagamento, novoEndereco, novoTelefone, novaLat, novaLng, id]
+            );
         } else {
-            await db.run('UPDATE vendas SET status = ?, pagamento = ?, data_pagamento = NULL WHERE id = ?', [status, pagamento, id]);
+            await db.run(
+                'UPDATE vendas SET status = ?, pagamento = ?, endereco = ?, telefone_entrega = ?, lat = ?, lng = ? WHERE id = ?', 
+                [status, pagamento, novoEndereco, novoTelefone, novaLat, novaLng, id]
+            );
         }
-        res.json({ message: "Pedido atualizado!" });
+        res.json({ message: "Pedido atualizado com sucesso!" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// A rota de remover item ficou BEM mais simples com banco normalizado!
+app.put('/api/vendas/:id/rota', async (req, res) => {
+    const { endereco, telefone, lat, lng } = req.body;
+    const { id } = req.params;
+    try {
+        await db.run(
+            'UPDATE vendas SET endereco = ?, telefone_entrega = ?, lat = ?, lng = ? WHERE id = ?', 
+            [endereco, telefone, lat, lng, id]
+        );
+        res.json({ message: "Rota salva provisoriamente!" });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.delete('/api/vendas/:venda_id/remover-item/:produto_id', async (req, res) => {
     const { venda_id, produto_id } = req.params; 
     try {
-        // 1. Pega a quantidade do item para devolver ao estoque
         const item = await db.get('SELECT quantidade, subtotal FROM itens_venda WHERE venda_id = ? AND produto_id = ?', [venda_id, produto_id]);
         if(!item) return res.status(404).json({ error: "Item não encontrado." });
 
-        // 2. Remove o item e atualiza estoque e total da venda
         await db.run('BEGIN TRANSACTION');
         await db.run('DELETE FROM itens_venda WHERE venda_id = ? AND produto_id = ?', [venda_id, produto_id]);
         await db.run('UPDATE produtos SET qtd = qtd + ? WHERE id = ?', [item.quantidade, produto_id]);
         await db.run('UPDATE vendas SET total = total - ? WHERE id = ?', [item.subtotal, venda_id]);
         
-        // Se a venda ficou sem itens, apaga a venda inteira
         const itensRestantes = await db.get('SELECT COUNT(*) as count FROM itens_venda WHERE venda_id = ?', [venda_id]);
         if(itensRestantes.count === 0) {
             await db.run('DELETE FROM vendas WHERE id = ?', [venda_id]);
         }
 
         await db.run('COMMIT');
-        res.json({ message: "Item removido e recalculado perfeitamente!" });
+        res.json({ message: "Item removido e recalculado!" });
     } catch (e) {
         await db.run('ROLLBACK');
         res.status(500).json({ error: e.message });
     }
 });
 
-// ================= Clientes (NOVO - 2FN) =================
 app.get('/api/clientes', async (req, res) => {
     const clientes = await db.all('SELECT * FROM clientes ORDER BY nome ASC');
     res.json(clientes);
@@ -300,8 +352,6 @@ app.post('/api/clientes', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-
-// ================= Produtos =================
 app.get('/api/produtos', async (req, res) => {
     const produtos = await db.all('SELECT * FROM produtos ORDER BY nome ASC');
     res.json(produtos);
@@ -325,23 +375,44 @@ app.put('/api/produtos/:id', async (req, res) => {
             'UPDATE produtos SET nome = ?, qtd = ?, vCompra = ?, vVenda = ?, vKG = ?, unidade = ? WHERE id = ?',
             [nome, qtd, vCompra, vVenda, vKG, unidade, req.params.id]
         );
-        res.json({ message: "Produto atualizado com sucesso!" });
+        res.json({ message: "Produto atualizado!" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.delete('/api/produtos/:id', async (req, res) => {
-    await db.run('DELETE FROM produtos WHERE id = ?', req.params.id);
-    res.json({ message: "Produto removido!" });
+    try {
+        await db.run('PRAGMA foreign_keys = OFF'); 
+        await db.run('DELETE FROM produtos WHERE id = ?', req.params.id);
+        await db.run('PRAGMA foreign_keys = ON'); 
+        res.json({ message: "Produto removido com sucesso!" });
+    } catch (e) {
+        await db.run('PRAGMA foreign_keys = ON'); 
+        res.status(500).json({ error: e.message });
+    }
 });
 
-// ================= Sangrias e Batimentos (AGORA PEDEM usuario_id) =================
-// Resumido para caber perfeitamente no padrão, mas mantendo a lógica de FK
+app.get('/api/sangrias', async (req, res) => {
+    try {
+        const sangrias = await db.all('SELECT * FROM sangrias ORDER BY id DESC');
+        res.json(sangrias);
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 app.post('/api/sangrias', async (req, res) => {
     const { usuario_id, valor, motivo, data } = req.body;
     const data_sangria = data || new Date().toLocaleString('pt-BR');
+    const motivo_seguro = motivo || "Retirada de Caixa"; 
+
     try {
-        await db.run('INSERT INTO sangrias (usuario_id, valor, motivo, data) VALUES (?, ?, ?, ?)', [usuario_id || 1, valor, motivo, data_sangria]);
+        await db.run('INSERT INTO sangrias (usuario_id, valor, motivo, data) VALUES (?, ?, ?, ?)', [usuario_id || 1, valor, motivo_seguro, data_sangria]);
         res.status(201).json({ message: "Sangria salva!" });
+    } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+app.get('/api/batimentos', async (req, res) => {
+    try {
+        const batimentos = await db.all('SELECT * FROM batimentos ORDER BY id DESC');
+        res.json(batimentos);
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -356,10 +427,87 @@ app.post('/api/batimentos', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
-// ================= ROTAS DE USUÁRIOS =================
 app.get('/api/usuarios', async (req, res) => {
     const usuarios = await db.all('SELECT id, nome, login, nivel FROM usuarios ORDER BY nome ASC');
     res.json(usuarios);
+});
+
+app.post('/api/login', async (req, res) => {
+    const { usuario, senha } = req.body;
+    try {
+        const user = await db.get('SELECT id, nome, nivel FROM usuarios WHERE login = ? AND senha = ?', [usuario, senha]);
+        if (user) {
+            res.json(user);
+        } else {
+            res.status(401).json({ error: 'Usuário ou senha incorretos' });
+        }
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.post('/api/usuarios', async (req, res) => {
+    const { novoNome, novoLogin, novaSenha, novoNivel, loginGerente, senhaGerente } = req.body;
+    try {
+        const admin = await db.get('SELECT id FROM usuarios WHERE login = ? AND senha = ? AND nivel = ?', [loginGerente, senhaGerente, 'admin']);
+        if (!admin) {
+            return res.status(403).json({ error: 'Autorização de gerente inválida ou sem permissão.' });
+        }
+
+        const existe = await db.get('SELECT id FROM usuarios WHERE login = ?', [novoLogin]);
+        if (existe) {
+            return res.status(400).json({ error: 'Este login já está em uso.' });
+        }
+
+        await db.run('INSERT INTO usuarios (nome, login, senha, nivel) VALUES (?, ?, ?, ?)', [novoNome, novoLogin, novaSenha, novoNivel]);
+        res.status(201).json({ message: 'Usuário cadastrado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+}); 
+
+app.put('/api/usuarios/:id', async (req, res) => {
+    const { novoNome, novoLogin, novaSenha, novoNivel, loginGerente, senhaGerente } = req.body;
+    try {
+        const admin = await db.get('SELECT id FROM usuarios WHERE login = ? AND senha = ? AND nivel = ?', [loginGerente, senhaGerente, 'admin']);
+        if (!admin) {
+            return res.status(403).json({ error: 'Autorização de gerente inválida ou sem permissão.' });
+        }
+
+        if (novaSenha && novaSenha.trim() !== '') {
+            await db.run('UPDATE usuarios SET nome = ?, login = ?, senha = ?, nivel = ? WHERE id = ?', 
+                [novoNome, novoLogin, novaSenha, novoNivel, req.params.id]);
+        } else {
+            await db.run('UPDATE usuarios SET nome = ?, login = ?, nivel = ? WHERE id = ?', 
+                [novoNome, novoLogin, novoNivel, req.params.id]);
+        }
+        
+        res.json({ message: 'Usuário atualizado com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+app.delete('/api/usuarios/:id', async (req, res) => {
+    const { loginGerente, senhaGerente } = req.body;
+    try {
+        const admin = await db.get('SELECT id FROM usuarios WHERE login = ? AND senha = ? AND nivel = ?', [loginGerente, senhaGerente, 'admin']);
+        if (!admin) {
+            return res.status(403).json({ error: 'Autorização de gerente inválida para exclusão.' });
+        }
+
+        const qtdAdmins = await db.get("SELECT COUNT(*) as count FROM usuarios WHERE nivel = 'admin'");
+        const usuarioAlvo = await db.get("SELECT nivel FROM usuarios WHERE id = ?", [req.params.id]);
+        
+        if (usuarioAlvo.nivel === 'admin' && qtdAdmins.count <= 1) {
+            return res.status(400).json({ error: 'Você não pode excluir o único administrador do sistema!' });
+        }
+
+        await db.run('DELETE FROM usuarios WHERE id = ?', [req.params.id]);
+        res.json({ message: 'Usuário removido com sucesso!' });
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
 });
 
 app.listen(5000, () => console.log("🚀 Servidor TopFrango Normalizado rodando na porta 5000"));

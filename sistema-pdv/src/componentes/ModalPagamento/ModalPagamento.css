@@ -1,5 +1,3 @@
-/* src/componentes/ModalPagamento/ModalPagamento.css */
-
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -23,11 +21,66 @@
   animation: modalEntrada 0.3s ease-out;
 }
 
+/* --- NOVO: ESTILOS DO CABEÇALHO E BOTÃO DE FECHAR --- */
+.modal-header {
+  display: flex;
+  justify-content: space-between; /* Joga o título pra esquerda e o X pra direita */
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #eee;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.4rem;
+  color: #333;
+}
+
+.btn-fechar {
+  background: transparent;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #888;
+  padding: 5px;
+  line-height: 1;
+  transition: color 0.2s;
+}
+
+.btn-fechar:hover {
+  color: #D32F2F;
+}
+/* ---------------------------------------------------- */
+
 @keyframes modalEntrada {
   from { opacity: 0; transform: translateY(-20px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
+/* --- ESTILOS DE DESTAQUE --- */
+.valor-destaque {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #f9f9f9;
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 15px;
+  border: 1px solid #e0e0e0;
+}
+
+.valor-destaque span {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+.valor-destaque strong {
+  font-size: 1.8rem;
+  color: #D32F2F; /* Vermelho TopFrango */
+}
+
+/* --- OPÇÕES DE PAGAMENTO --- */
 .opcoes-pagamento {
   display: flex;
   flex-direction: column;
@@ -46,13 +99,25 @@
   border-radius: 8px;
   cursor: pointer;
   transition: 0.2s;
+  background-color: #f0f0f0;
+  color: #333;
+  font-weight: 600;
+}
+
+.opcoes-pagamento button:hover {
+  background-color: #e0e0e0;
+  transform: translateY(-2px);
 }
 
 .btn-pagar-depois {
-  background-color: #2c3e50 !important;
-  color: white;
+  background-color: #f0f0f0 !important;
+  color: #333 !important;
   margin-top: 10px;
 } 
+
+.btn-pagar-depois:hover {
+  background-color: #e0e0e0 !important;
+}
 
 /* --- ESTILOS DA CALCULADORA DE TROCO --- */
 .area-calculo-troco {
@@ -132,6 +197,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  transition: 0.2s;
+}
+
+.btn-voltar-troco:hover {
+  background: #e0e0e0;
 }
 
 .btn-confirmar-troco {
@@ -147,6 +217,11 @@
   align-items: center;
   justify-content: center;
   gap: 8px;
+  transition: 0.2s;
+}
+
+.btn-confirmar-troco:hover:not(:disabled) {
+  background: #1b5e20;
 }
 
 .btn-confirmar-troco:disabled {
