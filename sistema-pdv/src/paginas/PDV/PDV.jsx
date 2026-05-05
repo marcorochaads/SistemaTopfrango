@@ -3,11 +3,11 @@ import './PDV.css';
 import { 
   FaChartLine, FaClipboardList, FaDollarSign, 
   FaMapMarkerAlt, FaDesktop, FaUserCircle, FaBoxes, 
-  FaUserPlus, FaSignOutAlt, FaShoppingCart, FaArrowUp, FaMedal, FaArrowDown
+  FaUserPlus, FaSignOutAlt, FaShoppingCart, FaArrowUp, FaMedal, FaArrowDown, FaMoneyBillWave
 } from 'react-icons/fa';
 
 const PDV = ({ 
-  usuarioLogado, // NOVO: Recebemos os dados do usuário aqui
+  usuarioLogado, 
   irParaVendas, 
   irParaEstoque, 
   irParaPedidos, 
@@ -18,12 +18,12 @@ const PDV = ({
   onSair
 }) => {
 
-  // Descobrimos se é admin para facilitar as checagens no código
   const isAdmin = usuarioLogado?.nivel === 'admin';
 
   const [estatisticas, setEstatisticas] = useState({
     vendasHoje: 0,
-    faturamentoDia: 0,
+    faturamentoMes: 0, // ALTERADO para Mês
+    lucroMes: 0,       // ALTERADO para Mês
     crescimento: 0,
     produtosTop: []
   });
@@ -40,9 +40,13 @@ const PDV = ({
         const produtos = await resProdutos.json();
 
         const mapaUnidades = {};
+        const mapaCustos = {}; 
+
         if (produtos && produtos.length > 0) {
           produtos.forEach(p => {
             mapaUnidades[p.nome] = p.unidade ? p.unidade.toLowerCase() : 'un';
+            // Pega o custo do produto (adapte p.vCusto ou p.custo de acordo com o seu backend)
+            mapaCustos[p.nome] = parseFloat(p.vCompra || 0);
           });
         }
 
@@ -52,7 +56,7 @@ const PDV = ({
         const anoAtual = new Date().getFullYear();
 
         let countVendasHoje = 0;
-        let faturamentoHoje = 0;
+        let custoMesAtual = 0; // Acumulador de custo do MÊS
         let faturamentoMesAtual = 0;
         let faturamentoMesAnterior = 0;
         const contagemProdutos = {};
@@ -70,18 +74,29 @@ const PDV = ({
           
           const ehFiado = formaPagamento.includes('fiado') || formaPagamento.includes('prazo') || statusVenda === 'pendente';
 
+          // Contagem de vendas de hoje (independente se é fiado ou não, para saber o movimento)
           if (dataVendaStr === dataHojeStr && statusVenda !== 'cancelado') {
             countVendasHoje++; 
-            
-            if (!ehFiado) {
-              faturamentoHoje += venda.total;
-            }
           }
 
+          // Cálculos Financeiros (Apenas Vendas Pagas e Não Canceladas)
           if (statusVenda !== 'cancelado' && !ehFiado) {
+            
+            // Lógica do MÊS ATUAL
             if (anoVenda === anoAtual && mesVenda === mesAtual) {
               faturamentoMesAtual += venda.total;
+
+              // Calcula o custo dos itens vendidos no MÊS para achar o lucro
+              if (venda.itens && venda.itens.length > 0) {
+                venda.itens.forEach(item => {
+                  const nomeProduto = item.produto_nome || 'Produto Desconhecido';
+                  const custoUn = mapaCustos[nomeProduto] || 0;
+                  custoMesAtual += (item.quantidade * custoUn);
+                });
+              }
             }
+
+            // Lógica do MÊS ANTERIOR (para o cálculo de crescimento)
             if (
               (anoVenda === anoAtual && mesVenda === mesAtual - 1) || 
               (mesAtual === 1 && mesVenda === 12 && anoVenda === anoAtual - 1)
@@ -90,6 +105,7 @@ const PDV = ({
             }
           }
 
+          // Contagem de Produtos Top do Mês
           if (anoVenda === anoAtual && mesVenda === mesAtual && statusVenda !== 'cancelado') {
             if (venda.itens && venda.itens.length > 0) {
               venda.itens.forEach(item => {
@@ -123,9 +139,13 @@ const PDV = ({
           crescimentoCalculado = 0; 
         }
 
+        // Subtrai o custo mensal do faturamento mensal para obter o lucro do mês
+        const lucroMesCalculado = faturamentoMesAtual - custoMesAtual;
+
         setEstatisticas({
           vendasHoje: countVendasHoje,
-          faturamentoDia: faturamentoHoje,
+          faturamentoMes: faturamentoMesAtual,
+          lucroMes: lucroMesCalculado,
           crescimento: crescimentoCalculado,
           produtosTop: produtosTopArray
         });
@@ -145,14 +165,12 @@ const PDV = ({
         <div className="perfil-usuario">
           <FaUserCircle size={50} className="icone-usuario" />
           <div className="texto-usuario">
-            {/* NOVO: Nome e Cargo dinâmicos baseados no login */}
             <span className="cargo">{isAdmin ? 'ADMINISTRADOR' : 'FUNCIONÁRIO'}</span>
             <span className="nome">{usuarioLogado?.nome || 'Usuário'}</span>
           </div>
         </div>
 
         <nav className="lista-botoes">
-          {/* Botões liberados para TODOS */}
           <button className="btn-menu destaque" onClick={irParaVendas}>
             <div className="conteudo-btn">
               <span>Vender</span>
@@ -173,7 +191,6 @@ const PDV = ({
             <FaMapMarkerAlt size={20} />
           </button>
 
-          {/* NOVO: Botões liberados APENAS para ADMIN */}
           {isAdmin && (
             <>
               <button className="btn-menu" onClick={irParaResultados}>
@@ -213,7 +230,7 @@ const PDV = ({
           </header>
 
           <div className="cards-resumo">
-            {/* Vendas Hoje - Todos podem ver a quantidade de vendas */}
+            {/* Vendas Hoje - Mantido para visão de movimento diário */}
             <div className="card-estatistica">
               <div className="card-icone"><FaShoppingCart /></div>
               <div className="card-info">
@@ -222,20 +239,18 @@ const PDV = ({
               </div>
             </div>
 
-            {/* Faturamento - APENAS ADMIN vê o valor */}
+            {/* Faturamento do Mês */}
             <div className="card-estatistica">
               <div className="card-icone verde"><FaDollarSign /></div>
               <div className="card-info">
-                <span>Faturamento Dia</span>
+                <span>Faturamento (Mês)</span>
                 <h3>
-                  {isAdmin 
-                    ? estatisticas.faturamentoDia.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' }) 
-                    : 'R$ ****'}
+                  {estatisticas.faturamentoMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </h3>
               </div>
             </div>
 
-            {/* Crescimento - APENAS ADMIN vê a porcentagem */}
+            {/* Crescimento do Mês */}
             <div className="card-estatistica">
               <div className="card-icone azul" style={{ backgroundColor: estatisticas.crescimento >= 0 ? 'rgba(2, 119, 189, 0.1)' : 'rgba(211, 47, 47, 0.1)', color: estatisticas.crescimento >= 0 ? '#0277bd' : '#D32F2F' }}>
                 {estatisticas.crescimento >= 0 ? <FaArrowUp /> : <FaArrowDown />}
@@ -249,6 +264,21 @@ const PDV = ({
                 </h3>
               </div>
             </div>
+
+            {/* Lucro do Mês - Exclusivo Admin */}
+            {isAdmin && (
+              <div className="card-estatistica">
+                <div className="card-icone" style={{ backgroundColor: 'rgba(76, 175, 80, 0.1)', color: '#388E3C' }}>
+                  <FaMoneyBillWave />
+                </div>
+                <div className="card-info">
+                  <span>Lucro Líquido (Mês)</span>
+                  <h3 style={{ color: '#388E3C' }}>
+                    {estatisticas.lucroMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                  </h3>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="paineis-inferiores">

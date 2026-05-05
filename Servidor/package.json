@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "Server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "jest --forceExit",
     "start": "node server.js"
   },
   "keywords": [],
@@ -11,10 +11,15 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@sentry/node": "^10.51.0",
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "node-cron": "^4.2.1",
     "sqlite": "^5.1.1",
     "sqlite3": "^5.1.7"
+  },
+  "devDependencies": {
+    "jest": "^30.3.0",
+    "supertest": "^7.2.2"
   }
 }

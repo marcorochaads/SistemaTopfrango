@@ -5,7 +5,6 @@ import {
   FaCalendarDay, FaCheckDouble, FaHistory, FaPlusCircle 
 } from 'react-icons/fa';
 
-// Tiramos o "aoVoltar" daqui
 const Caixa = () => {
   const [vendas, setVendas] = useState([]);
   const [sangrias, setSangrias] = useState([]);
@@ -16,12 +15,36 @@ const Caixa = () => {
   const [isBatimentoOpen, setIsBatimentoOpen] = useState(false);
   const [isAberturaOpen, setIsAberturaOpen] = useState(false);
   
+  // Os estados agora recebem a string mascarada (ex: "1.500,00")
   const [valorSangria, setValorSangria] = useState('');
   const [valorFisico, setValorFisico] = useState(''); 
   const [valorAbertura, setValorAbertura] = useState('');
   const [turno, setTurno] = useState('1º Turno');
 
   const dataHoje = new Date().toLocaleDateString('pt-BR');
+
+  // --- FUNÇÕES DE FORMATAÇÃO E MÁSCARAS ---
+
+  // Formata qualquer número para o padrão BR de exibição (ex: 1500.5 -> "1.500,50")
+  const formatarValorBR = (valor) => {
+    return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
+  // Aplica a máscara de dinheiro enquanto o usuário digita nos modais
+  const aplicarMascaraDinheiro = (valor) => {
+    let v = String(valor).replace(/\D/g, ''); 
+    if (v === '') return '';
+    v = (Number(v) / 100).toFixed(2); 
+    v = v.replace('.', ','); 
+    v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.'); 
+    return v;
+  };
+
+  // Converte a string mascarada de volta para número na hora de salvar no banco
+  const parseDinheiro = (str) => {
+    if (!str) return 0;
+    return parseFloat(String(str).replace(/\./g, '').replace(',', '.'));
+  };
 
   const carregarDados = async () => {
     try {
@@ -66,10 +89,13 @@ const Caixa = () => {
   
   // LOGICA: Inicial + Dinheiro que entrou - O que saiu
   const saldoSistema = valorInicial + totalDinheiro - totalSangriasHoje; 
-  const diferenca = parseFloat(valorFisico || 0) - saldoSistema;
+  
+  // Como o valorFisico agora tem máscara, usamos o parseDinheiro para fazer a conta
+  const valorFisicoNum = parseDinheiro(valorFisico);
+  const diferenca = valorFisicoNum - saldoSistema;
 
   const confirmarAbertura = async () => {
-    const valor = parseFloat(valorAbertura);
+    const valor = parseDinheiro(valorAbertura); // Usando a conversão nova
     if (valor >= 0) {
       try {
         const response = await fetch('http://localhost:5000/api/aberturas', {
@@ -80,6 +106,7 @@ const Caixa = () => {
         if (response.ok) {
           alert("Caixa aberto com sucesso!");
           setIsAberturaOpen(false);
+          setValorAbertura(''); // Limpa o campo
           carregarDados();
         }
       } catch (error) { alert("Erro ao abrir caixa."); }
@@ -87,7 +114,7 @@ const Caixa = () => {
   };
 
   const confirmarSangria = async () => {
-    const valor = parseFloat(valorSangria);
+    const valor = parseDinheiro(valorSangria); // Usando a conversão nova
     if (valor > 0) {
       try {
         const response = await fetch('http://localhost:5000/api/sangrias', {
@@ -106,7 +133,7 @@ const Caixa = () => {
   };
 
   const salvarBatimento = async () => {
-    if (!valorFisico) return alert("Insira o valor contado na gaveta!");
+    if (!valorFisicoNum && valorFisicoNum !== 0) return alert("Insira o valor contado na gaveta!");
 
     // BLOQUEIO: Verifica se o turno selecionado já foi batido hoje
     const turnoJaFechado = batimentosHoje.some(b => b.turno === turno);
@@ -118,7 +145,7 @@ const Caixa = () => {
       data: new Date().toLocaleString('pt-BR'), 
       turno,
       valor_sistema: saldoSistema,
-      valor_fisico: parseFloat(valorFisico),
+      valor_fisico: valorFisicoNum, // Salva o número limpo
       pix: totalPix,
       cartao: totalCartao,
       diferenca: diferenca,
@@ -144,7 +171,6 @@ const Caixa = () => {
     <div className="container-caixa">
       <header className="header-caixa">
         <div className="header-info">
-          {/* Botão de "Voltar" foi removido daqui! */}
           <h2><FaCashRegister color="#D32F2F" /> Controle de Caixa</h2>
         </div>
         <div className="data-caixa-atual"><FaCalendarDay /> <strong>{dataHoje}</strong></div>
@@ -173,28 +199,32 @@ const Caixa = () => {
             <div className="grid-valores">
               <div className="item-valor abertura-cor">
                 <span>Fundo de Caixa (Abertura)</span>
-                <strong>R$ {valorInicial.toFixed(2)}</strong>
+                {/* Formatação aplicada */}
+                <strong>R$ {formatarValorBR(valorInicial)}</strong>
               </div>
               <div className="item-valor">
                 <span>Vendas em Dinheiro (+)</span>
-                <strong>R$ {totalDinheiro.toFixed(2)}</strong>
+                {/* Formatação aplicada */}
+                <strong>R$ {formatarValorBR(totalDinheiro)}</strong>
               </div>
               <div className="item-valor retirada">
                 <span>Sangrias/Retiradas (-)</span>
-                <strong>- R$ {totalSangriasHoje.toFixed(2)}</strong>
+                {/* Formatação aplicada */}
+                <strong>- R$ {formatarValorBR(totalSangriasHoje)}</strong>
               </div>
               <hr />
               <div className="item-valor total-liquido">
                 <span>ESPERADO NA GAVETA</span>
-                <span className="valor-destaque">R$ {saldoSistema.toFixed(2)}</span>
+                {/* Formatação aplicada */}
+                <span className="valor-destaque">R$ {formatarValorBR(saldoSistema)}</span>
               </div>
               <div className="item-valor outros-meios">
                 <span>Total PIX (Informado)</span>
-                <span>R$ {totalPix.toFixed(2)}</span>
+                <span>R$ {formatarValorBR(totalPix)}</span>
               </div>
               <div className="item-valor outros-meios">
                 <span>Total Cartão (Informado)</span>
-                <span>R$ {totalCartao.toFixed(2)}</span>
+                <span>R$ {formatarValorBR(totalCartao)}</span>
               </div>
             </div>
           </div>
@@ -219,13 +249,14 @@ const Caixa = () => {
                       <tr key={i}>
                         <td>{b.data.split(' ')[0]}</td>
                         <td>{b.turno}</td>
-                        <td>R$ {parseFloat(b.valor_sistema).toFixed(2)}</td>
-                        <td>R$ {parseFloat(b.valor_fisico).toFixed(2)}</td>
+                        {/* Formatação aplicada nas tabelas */}
+                        <td>R$ {formatarValorBR(b.valor_sistema)}</td>
+                        <td>R$ {formatarValorBR(b.valor_fisico)}</td>
                         <td style={{ 
                           color: diferencaNumero < 0 ? '#d32f2f' : (diferencaNumero === 0 ? '#388e3c' : 'inherit'),
                           fontWeight: 'bold'
                         }}>
-                          R$ {diferencaNumero.toFixed(2)}
+                          R$ {formatarValorBR(diferencaNumero)}
                         </td>
                       </tr>
                     );
@@ -243,7 +274,14 @@ const Caixa = () => {
           <div className="modal-caixa">
             <h3>Abrir Caixa do Dia</h3>
             <p>Informe o valor que você tem na gaveta para troco:</p>
-            <input type="number" placeholder="R$ 0,00" value={valorAbertura} onChange={(e) => setValorAbertura(e.target.value)} autoFocus />
+            {/* type mudou para text e onChange aplica a máscara */}
+            <input 
+              type="text" 
+              placeholder="0,00" 
+              value={valorAbertura} 
+              onChange={(e) => setValorAbertura(aplicarMascaraDinheiro(e.target.value))} 
+              autoFocus 
+            />
             <div className="modal-acoes">
               <button className="btn-cancelar" onClick={() => setIsAberturaOpen(false)}>Cancelar</button>
               <button className="btn-confirmar" onClick={confirmarAbertura}>Iniciar Caixa</button>
@@ -257,7 +295,14 @@ const Caixa = () => {
         <div className="modal-overlay">
           <div className="modal-caixa">
             <h3>Retirada (Sangria)</h3>
-            <input type="number" placeholder="0,00" value={valorSangria} onChange={(e) => setValorSangria(e.target.value)} autoFocus />
+            {/* type mudou para text e onChange aplica a máscara */}
+            <input 
+              type="text" 
+              placeholder="0,00" 
+              value={valorSangria} 
+              onChange={(e) => setValorSangria(aplicarMascaraDinheiro(e.target.value))} 
+              autoFocus 
+            />
             <div className="modal-acoes">
               <button className="btn-cancelar" onClick={() => setIsModalOpen(false)}>Cancelar</button>
               <button className="btn-confirmar" onClick={confirmarSangria}>Confirmar</button>
@@ -276,17 +321,24 @@ const Caixa = () => {
               <option value="2º Turno">2º Turno (Fechamento)</option>
             </select>
             
-            <input type="number" placeholder="Quanto tem na gaveta?" value={valorFisico} onChange={(e) => setValorFisico(e.target.value)} />
+            {/* type mudou para text e onChange aplica a máscara */}
+            <input 
+              type="text" 
+              placeholder="Quanto tem na gaveta?" 
+              value={valorFisico} 
+              onChange={(e) => setValorFisico(aplicarMascaraDinheiro(e.target.value))} 
+            />
 
             <div className="resultado-batimento">
-              <div className="info-linha"><span>Sistema espera:</span> <strong>R$ {saldoSistema.toFixed(2)}</strong></div>
+              {/* Formatação aplicada */}
+              <div className="info-linha"><span>Sistema espera:</span> <strong>R$ {formatarValorBR(saldoSistema)}</strong></div>
               <div className="info-linha">
                 <span>Diferença:</span> 
                 <strong style={{ 
                   color: diferenca < 0 ? '#d32f2f' : (diferenca === 0 ? '#388e3c' : 'inherit'),
                   fontSize: '1.2em'
                 }}>
-                  R$ {diferenca.toFixed(2)}
+                  R$ {formatarValorBR(diferenca)}
                 </strong>
               </div>
             </div>
@@ -302,4 +354,4 @@ const Caixa = () => {
   );
 };
 
-export default Caixa; 
+export default Caixa;

@@ -21,6 +21,12 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
   const { setErroConexao } = useContext(ConexaoContext);
   const dataAtual = new Date().toLocaleDateString('pt-BR');
 
+  // --- FUNÇÃO DE FORMATAÇÃO DE MOEDA ---
+  // Transforma 1500.5 em "1.500,50" apenas para exibição na tela
+  const formatarValorBR = (valor) => {
+    return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  };
+
   const carregarProdutos = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/produtos');
@@ -137,7 +143,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
     setIsModalOpen(false);
   };
 
-  // Alterado: Adicionado 'telefoneOpcional'
   const confirmarPedido = async (metodoPagamento, telefoneOpcional = null) => {
     const itensVazios = carrinho.some(item => item.unidade === 'kg' && (item.qtd === '' || parseFloat(item.qtd) <= 0));
     if (itensVazios) {
@@ -157,7 +162,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
 
     const dadosVenda = {
       cliente_nome: cliente,
-      cliente_telefone: telefoneOpcional || null, // Alterado: Recebe o telefone do modal se existir
+      cliente_telefone: telefoneOpcional || null, 
       usuario_id: 1, 
       total: totalGeral,
       pagamento: isEntrega ? 'Pagar Depois' : metodoPagamento, 
@@ -258,7 +263,8 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
                 )}
                 <span className="nome-prod">{prod.nome}</span>
                 <span className="preco-prod">
-                  R$ {(prod.unidade === 'kg' ? prod.vKG : prod.vVenda).toFixed(2)}
+                  {/* FORMATAÇÃO APLICADA AQUI NO CATÁLOGO */}
+                  R$ {formatarValorBR(prod.unidade === 'kg' ? prod.vKG : prod.vVenda)}
                   {prod.unidade === 'kg' ? '/kg' : ''}
                 </span>
                 <small className="estoque-indicador">
@@ -306,7 +312,8 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
                 <div key={item.id} className="item-linha">
                   <div className="info-principal">
                     <span className="nome">{item.nome}</span>
-                    <small>R$ {item.preco.toFixed(2)} / {item.unidade}</small>
+                    {/* FORMATAÇÃO APLICADA NO PREÇO UNITÁRIO DO ITEM */}
+                    <small>R$ {formatarValorBR(item.preco)} / {item.unidade}</small>
                   </div>
                   <div className="controle-qtd">
                     {item.unidade === 'un' ? (
@@ -331,7 +338,8 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
                       </div>
                     )}
                   </div>
-                  <div className="subtotal"><span>R$ {(item.preco * (parseFloat(item.qtd) || 0)).toFixed(2)}</span></div>
+                  {/* FORMATAÇÃO APLICADA NO SUBTOTAL DA LINHA */}
+                  <div className="subtotal"><span>R$ {formatarValorBR(item.preco * (parseFloat(item.qtd) || 0))}</span></div>
                   <button className="btn-lixeira" onClick={() => removerItem(item.id)}><FaTrash /></button>
                 </div>
               ))
@@ -341,7 +349,8 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
         <div className="rodape-pedido">
           <div className="linha-total">
             <span>VALOR TOTAL</span>
-            <span className="valor-total">R$ {totalGeral.toFixed(2)}</span>
+            {/* FORMATAÇÃO APLICADA NO VALOR TOTAL */}
+            <span className="valor-total">R$ {formatarValorBR(totalGeral)}</span>
           </div>
           <div className="botoes-acao">
             <button className="btn-cancelar" onClick={novaVenda}><FaEraser /> Limpar</button>

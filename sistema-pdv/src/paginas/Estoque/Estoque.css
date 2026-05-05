@@ -164,7 +164,7 @@ input:checked + .slider:before { transform: translateX(26px); }
 }
 
 .modal-grid {
-  grid-template-columns: 1fr; /* Força os campos a ficarem um embaixo do outro no modal */
+  grid-template-columns: 1fr;
   gap: 15px;
 }
 

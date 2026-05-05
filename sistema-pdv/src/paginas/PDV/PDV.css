@@ -1,5 +1,3 @@
-/* PDV.css - Dashboard Estilizado */
-
 :root {
   --vermelho-topfrango: #D32F2F;
   --vermelho-escuro: #B71C1C;
@@ -172,13 +170,12 @@
 
 /* --- CARDS DE ESTATÍSTICA --- */
 .cards-resumo {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* Cria 2 colunas, deixando em formato 2x2 */
   gap: 20px;
-  justify-content: space-between;
 }
 
 .card-estatistica {
-  flex: 1;
   background: var(--branco);
   border-radius: 12px;
   padding: 20px;
@@ -199,6 +196,7 @@
   justify-content: center;
   align-items: center;
   font-size: 1.8rem;
+  flex-shrink: 0; /* Impede que o ícone amasse se o número for muito grande */
 }
 
 .card-icone.verde {
@@ -209,6 +207,11 @@
 .card-icone.azul {
   background-color: rgba(2, 119, 189, 0.1);
   color: #0277bd;
+}
+
+.card-info {
+  flex: 1;
+  overflow: hidden; /* Evita que números absurdamente grandes vazem do card */
 }
 
 .card-info span {
@@ -222,6 +225,9 @@
   margin: 0;
   font-size: 1.8rem;
   color: var(--texto-escuro);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis; /* Coloca '...' se o número for maior que a tela */
 }
 
 /* --- PAINÉIS INFERIORES --- */
@@ -294,54 +300,5 @@
   border-radius: 20px;
   font-size: 0.85rem;
   color: var(--texto-claro);
-  font-weight: bold;
-}
-
-/* Painel Progresso/Meta */
-.meta-mes {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.conteudo-meta {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-.texto-meta {
-  color: var(--texto-claro);
-  margin-bottom: 20px;
-  font-size: 1.05rem;
-}
-
-.texto-meta strong {
-  color: #2E7D32;
-  font-size: 1.3rem;
-}
-
-.barra-fundo {
-  width: 100%;
-  height: 20px;
-  background-color: #eee;
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-
-.barra-progresso {
-  height: 100%;
-  background: linear-gradient(90deg, var(--vermelho-topfrango) 0%, #ff5252 100%);
-  border-radius: 10px;
-  transition: width 1s ease-in-out;
-}
-
-.detalhes-meta {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.9rem;
-  color: #888;
   font-weight: bold;
 }

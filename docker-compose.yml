@@ -1,24 +1,25 @@
 version: '3.8'
-services:
-  db:
-    image: mysql:8.0
-    environment:
-      MYSQL_ROOT_PASSWORD: senha_topfrango
-      MYSQL_DATABASE: topfrango_db
-    ports:
-      - "3306:3306"
 
+services:
   backend:
     build: ./Servidor  
+    container_name: topfrango_backend
     ports:
       - "5000:5000"
-    depends_on:
-      - db
+    # O "volumes" garante que seus dados do SQLite não sumam se o contêiner reiniciar!
+    volumes:
+      - ./Servidor/topfrango.db:/app/topfrango.db
+      # Se você tiver uma pasta de backups gerada pelo seu cron, mapeie ela também:
+      # - ./Servidor/backups:/app/backups
+    restart: always
 
   frontend:
     build: ./sistema-pdv 
+    container_name: topfrango_frontend
     ports:
       - "3000:3000"
     stdin_open: true # Necessário para o React não fechar no Docker
+    tty: true        # Recomendado usar junto com o stdin_open no React
     depends_on:
-      - backend
+      - backend 
+    restart: always

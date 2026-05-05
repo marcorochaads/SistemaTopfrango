@@ -147,7 +147,8 @@ const Rotas = () => {
       return;
     }
     try {
-      const query = `${endereco}, Boa Viagem`;
+      // Cidade alterada para Madalena e adicionado Estado e País para maior precisão
+      const query = `${endereco} Madalena Ceará`;
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
       const data = await res.json();
       

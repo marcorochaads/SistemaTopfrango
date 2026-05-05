@@ -1,3 +1,5 @@
+require("./instrument.js");
+const Sentry = require("@sentry/node");
 const express = require('express');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
@@ -200,7 +202,6 @@ app.post('/api/aberturas', async (req, res) => {
 // ROTA CORRIGIDA: SALVAR VENDA COM CLIENTE_ID E TELEFONE
 // ==========================================
 app.post('/api/vendas', async (req, res) => {
-    // Agora capturamos o cliente_id e a variável telefone também!
     const { cliente_id, cliente_nome, cliente_telefone, telefone, usuario_id, total, pagamento, status, data, itensArray } = req.body;
     
     const data_pedido = data || new Date().toLocaleString('pt-BR'); 
@@ -212,7 +213,6 @@ app.post('/api/vendas', async (req, res) => {
         let idDoCliente = cliente_id || null;
         let telefoneFinal = cliente_telefone || telefone || null;
 
-        // Se o front enviou nome/telefone soltos, mas não enviou o ID, criamos um cliente novo
         if (!idDoCliente && ((cliente_nome && cliente_nome.trim() !== '') || (telefoneFinal && telefoneFinal.trim() !== ''))) {
             const nomeParaSalvar = cliente_nome || 'Cliente Fiado';
             
@@ -223,7 +223,6 @@ app.post('/api/vendas', async (req, res) => {
             idDoCliente = resultCliente.lastID; 
         }
 
-        // Salvamos também o "telefone_entrega" para garantir que o número fique preso no pedido
         const resultVenda = await db.run(
             'INSERT INTO vendas (cliente_id, usuario_id, total, pagamento, status, data, data_pagamento, telefone_entrega) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
             [idDoCliente, usuario_id || 1, total, pagamento, status, data_pedido, data_pag, telefoneFinal]
@@ -248,7 +247,7 @@ app.post('/api/vendas', async (req, res) => {
     }
 });
 
-// BUSCAR VENDAS (Já estava certo, mas agora tem dados pra puxar)
+// BUSCAR VENDAS
 app.get('/api/vendas', async (req, res) => {
     try {
         const vendas = await db.all(`
@@ -510,4 +509,22 @@ app.delete('/api/usuarios/:id', async (req, res) => {
     }
 });
 
-app.listen(5000, () => console.log("🚀 Servidor TopFrango Normalizado rodando na porta 5000"));
+// ==========================================
+// TESTE DE OBSERVABILIDADE - SENTRY (IFCE)
+// ==========================================
+
+// 1. Rota que força o erro proativo
+app.get("/debug-sentry", (req, res) => {
+  throw new Error("Falha Proativa: Teste de Telemetria IFCE!");
+});
+
+// 2. Capturador de erros do Sentry (DEVE ficar antes do app.listen)
+Sentry.setupExpressErrorHandler(app);
+
+// ==========================================
+
+// Exportamos o 'app' para os testes, e só rodamos o 'listen' se o arquivo for executado diretamente
+if (require.main === module) {
+    app.listen(5000, () => console.log("🚀 Servidor TopFrango Normalizado rodando na porta 5000"));
+}
+module.exports = app;
