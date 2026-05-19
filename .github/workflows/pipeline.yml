@@ -17,7 +17,7 @@ jobs:
       with:
         node-version: '18'
 
-    # CI: Roda os testes dentro da pasta Servidor 
+    # CI: Roda os testes dentro da pasta Servidor
     - name: Rodar Testes do Servidor
       working-directory: ./Servidor
       run: |
@@ -25,21 +25,22 @@ jobs:
         npm install
         npm test
 
-    # CD: Login no Docker Hub usando suas Secrets 
+    # CD: Login no Docker Hub usando suas Secrets
     - name: Login no Docker Hub
       uses: docker/login-action@v2
       with:
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
 
-    # CD: Build e Push do Backend (Aponta para a pasta Servidor)
+    # CD: Build e Push do Backend (Corrigido aqui)
+    - name: Build e Push da Imagem do Backend
       uses: docker/build-push-action@v4
       with:
         context: ./Servidor
         push: true
         tags: ${{ secrets.DOCKER_USERNAME }}/topfrango-backend:latest 
 
-    # CD: Build e Push do Frontend (Aponta para a pasta sistema-pdv) 
+    # CD: Build e Push do Frontend
     - name: Build e Push da Imagem do Frontend
       uses: docker/build-push-action@v4
       with:
