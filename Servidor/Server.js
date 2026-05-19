@@ -83,9 +83,16 @@ const limparBackupsAntigos = () => {
             usuario_id INTEGER,
             total REAL NOT NULL,
             pagamento TEXT,
+            dinheiro REAL DEFAULT 0,
+            pix REAL DEFAULT 0,
+            cartao REAL DEFAULT 0,
             status TEXT,
             data TEXT,
             data_pagamento TEXT,
+            endereco TEXT,
+            telefone_entrega TEXT,
+            lat REAL,
+            lng REAL,
             FOREIGN KEY (cliente_id) REFERENCES clientes(id),
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         );
@@ -139,18 +146,15 @@ const limparBackupsAntigos = () => {
     const colunasVendas = await db.all("PRAGMA table_info(vendas)");
     const nomesColunasVendas = colunasVendas.map(c => c.name);
 
-    if (!nomesColunasVendas.includes('endereco')) {
-        await db.exec("ALTER TABLE vendas ADD COLUMN endereco TEXT;");
-    }
-    if (!nomesColunasVendas.includes('telefone_entrega')) {
-        await db.exec("ALTER TABLE vendas ADD COLUMN telefone_entrega TEXT;");
-    }
-    if (!nomesColunasVendas.includes('lat')) {
-        await db.exec("ALTER TABLE vendas ADD COLUMN lat REAL;");
-    }
-    if (!nomesColunasVendas.includes('lng')) {
-        await db.exec("ALTER TABLE vendas ADD COLUMN lng REAL;");
-    }
+    if (!nomesColunasVendas.includes('endereco')) await db.exec("ALTER TABLE vendas ADD COLUMN endereco TEXT;");
+    if (!nomesColunasVendas.includes('telefone_entrega')) await db.exec("ALTER TABLE vendas ADD COLUMN telefone_entrega TEXT;");
+    if (!nomesColunasVendas.includes('lat')) await db.exec("ALTER TABLE vendas ADD COLUMN lat REAL;");
+    if (!nomesColunasVendas.includes('lng')) await db.exec("ALTER TABLE vendas ADD COLUMN lng REAL;");
+    
+    // Novas colunas para pagamento dividido
+    if (!nomesColunasVendas.includes('dinheiro')) await db.exec("ALTER TABLE vendas ADD COLUMN dinheiro REAL DEFAULT 0;");
+    if (!nomesColunasVendas.includes('pix')) await db.exec("ALTER TABLE vendas ADD COLUMN pix REAL DEFAULT 0;");
+    if (!nomesColunasVendas.includes('cartao')) await db.exec("ALTER TABLE vendas ADD COLUMN cartao REAL DEFAULT 0;");
     // ==============================================================
 
     const qtdUsuarios = await db.get('SELECT COUNT(*) as count FROM usuarios');
@@ -199,10 +203,10 @@ app.post('/api/aberturas', async (req, res) => {
 });
 
 // ==========================================
-// ROTA CORRIGIDA: SALVAR VENDA COM CLIENTE_ID E TELEFONE
+// ROTA CORRIGIDA: SALVANDO VALORES DIVIDIDOS NO POST
 // ==========================================
 app.post('/api/vendas', async (req, res) => {
-    const { cliente_id, cliente_nome, cliente_telefone, telefone, usuario_id, total, pagamento, status, data, itensArray } = req.body;
+    const { cliente_id, cliente_nome, cliente_telefone, telefone, usuario_id, total, pagamento, dinheiro, pix, cartao, status, data, itensArray } = req.body;
     
     const data_pedido = data || new Date().toLocaleString('pt-BR'); 
     const data_pag = status === 'Pago' ? data_pedido : null; 
@@ -224,8 +228,8 @@ app.post('/api/vendas', async (req, res) => {
         }
 
         const resultVenda = await db.run(
-            'INSERT INTO vendas (cliente_id, usuario_id, total, pagamento, status, data, data_pagamento, telefone_entrega) VALUES (?, ?, ?, ?, ?, ?, ?, ?)', 
-            [idDoCliente, usuario_id || 1, total, pagamento, status, data_pedido, data_pag, telefoneFinal]
+            'INSERT INTO vendas (cliente_id, usuario_id, total, pagamento, dinheiro, pix, cartao, status, data, data_pagamento, telefone_entrega) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+            [idDoCliente, usuario_id || 1, total, pagamento, dinheiro || 0, pix || 0, cartao || 0, status, data_pedido, data_pag, telefoneFinal]
         );
         const vendaId = resultVenda.lastID;
 
@@ -274,8 +278,12 @@ app.get('/api/vendas', async (req, res) => {
     }
 });
 
+// ==========================================
+// ROTA CORRIGIDA: SALVANDO VALORES DIVIDIDOS NO PUT (UPDATE)
+// ==========================================
 app.put('/api/vendas/:id', async (req, res) => {
-    const { status, pagamento, endereco, telefone, lat, lng } = req.body;
+    // Adicionado: dinheiro, pix, cartao
+    const { status, pagamento, dinheiro, pix, cartao, endereco, telefone, lat, lng } = req.body;
     const { id } = req.params;
     try {
         const atual = await db.get('SELECT * FROM vendas WHERE id = ?', [id]);
@@ -285,17 +293,22 @@ app.put('/api/vendas/:id', async (req, res) => {
         const novoTelefone = telefone !== undefined ? telefone : atual.telefone_entrega;
         const novaLat = lat !== undefined ? lat : atual.lat;
         const novaLng = lng !== undefined ? lng : atual.lng;
+        
+        // Mantém o valor atual se não for enviado no request
+        const novoDinheiro = dinheiro !== undefined ? dinheiro : atual.dinheiro;
+        const novoPix = pix !== undefined ? pix : atual.pix;
+        const novoCartao = cartao !== undefined ? cartao : atual.cartao;
 
-        if (status === 'Pago') {
+        if (status === 'Pago' && atual.status !== 'Pago') {
             const momentoPagamento = new Date().toLocaleString('pt-BR');
             await db.run(
-                'UPDATE vendas SET status = ?, pagamento = ?, data_pagamento = ?, endereco = ?, telefone_entrega = ?, lat = ?, lng = ? WHERE id = ?', 
-                [status, pagamento, momentoPagamento, novoEndereco, novoTelefone, novaLat, novaLng, id]
+                'UPDATE vendas SET status = ?, pagamento = ?, dinheiro = ?, pix = ?, cartao = ?, data_pagamento = ?, endereco = ?, telefone_entrega = ?, lat = ?, lng = ? WHERE id = ?', 
+                [status, pagamento, novoDinheiro, novoPix, novoCartao, momentoPagamento, novoEndereco, novoTelefone, novaLat, novaLng, id]
             );
         } else {
             await db.run(
-                'UPDATE vendas SET status = ?, pagamento = ?, endereco = ?, telefone_entrega = ?, lat = ?, lng = ? WHERE id = ?', 
-                [status, pagamento, novoEndereco, novoTelefone, novaLat, novaLng, id]
+                'UPDATE vendas SET status = ?, pagamento = ?, dinheiro = ?, pix = ?, cartao = ?, endereco = ?, telefone_entrega = ?, lat = ?, lng = ? WHERE id = ?', 
+                [status, pagamento, novoDinheiro, novoPix, novoCartao, novoEndereco, novoTelefone, novaLat, novaLng, id]
             );
         }
         res.json({ message: "Pedido atualizado com sucesso!" });
@@ -510,20 +523,19 @@ app.delete('/api/usuarios/:id', async (req, res) => {
 });
 
 // ==========================================
-// TESTE DE OBSERVABILIDADE - SENTRY (IFCE)
+// TESTE DE OBSERVABILIDADE - SENTRY
 // ==========================================
 
 // 1. Rota que força o erro proativo
 app.get("/debug-sentry", (req, res) => {
-  throw new Error("Falha Proativa: Teste de Telemetria IFCE!");
+  throw new Error("Falha Proativa: teste de telemetria IFCE!");
 });
 
-// 2. Capturador de erros do Sentry (DEVE ficar antes do app.listen)
+// 2. Capturador de erros do Sentry
 Sentry.setupExpressErrorHandler(app);
 
 // ==========================================
 
-// Exportamos o 'app' para os testes, e só rodamos o 'listen' se o arquivo for executado diretamente
 if (require.main === module) {
     app.listen(5000, () => console.log("🚀 Servidor TopFrango Normalizado rodando na porta 5000"));
 }

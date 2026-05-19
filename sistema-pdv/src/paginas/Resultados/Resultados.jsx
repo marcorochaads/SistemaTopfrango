@@ -44,58 +44,82 @@ const Resultados = () => {
 
   const filtrarDados = (lista, ehVenda = false) => {
     return lista.filter(item => {
-      if (!ehVenda) {
-          if (!item.data) return false;
-          if (filtro === 'dia') return item.data.includes(dataBuscaBR);
-          return item.data.includes(mesBuscaBR);
-      }
-
-      const dataParaFiltrar = item.data_pagamento || item.data;
-      
+      const dataParaFiltrar = ehVenda ? (item.data_pagamento || item.data) : item.data;
       if (!dataParaFiltrar) return false;
+      
       if (filtro === 'dia') return dataParaFiltrar.includes(dataBuscaBR);
       return dataParaFiltrar.includes(mesBuscaBR);
     });
   };
 
-  const vendasFiltradasCalculos = filtrarDados(vendas, true).filter(v => v.status === 'Pago');
-  
-  const vendasFiltradasTabela = vendas.filter(item => {
-      const dataParaFiltrar = item.data_pagamento || item.data;
-      if (!dataParaFiltrar) return false;
-      if (filtro === 'dia') return dataParaFiltrar.includes(dataBuscaBR);
-      return dataParaFiltrar.includes(mesBuscaBR);
-  });
+  // =========================================================================
+  // FUNÇÃO DE SEGURANÇA PARA CONVERTER NÚMEROS (Evita erros com "50,00" vs "50.00")
+  // =========================================================================
+  const converterValor = (valor) => {
+    if (!valor) return 0;
+    if (typeof valor === 'number') return valor;
+    // Transforma string com vírgula em ponto e converte para número
+    const numero = Number(String(valor).replace(',', '.'));
+    return isNaN(numero) ? 0 : numero;
+  };
+
+  // 1. Filtragem de segurança: Ignora maiúsculas/minúsculas no status "Pago"
+  const vendasFiltradasCalculos = filtrarDados(vendas, true).filter(
+    v => v.status && v.status.toLowerCase().trim() === 'pago'
+  );
   
   const sangriasFiltradas = filtrarDados(sangrias, false);
 
-  const totalBruto = vendasFiltradasCalculos.reduce((acc, v) => acc + v.total, 0);
-  const totalRetiradas = sangriasFiltradas.reduce((acc, s) => acc + s.valor, 0);
+  // 2. Cálculos Globais (Usando o conversor de segurança)
+  const totalBruto = vendasFiltradasCalculos.reduce((acc, v) => acc + converterValor(v.total), 0);
+  const totalRetiradas = sangriasFiltradas.reduce((acc, s) => acc + converterValor(s.valor), 0);
   const totalLiquido = totalBruto - totalRetiradas;
 
-  const getTotalPorTipo = (tipo) => 
-    vendasFiltradasCalculos
-      .filter(v => v.pagamento && v.pagamento.toLowerCase() === tipo.toLowerCase())
-      .reduce((acc, v) => acc + v.total, 0);
+  // =========================================================================
+  // 3. CÁLCULOS CORRIGIDOS E BLINDADOS (Ignora maiúsculas/minúsculas da string)
+  // =========================================================================
+  const totalPix = vendasFiltradasCalculos.reduce((acc, v) => {
+    let valor = converterValor(v.pix);
+    const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
+    
+    if (valor === 0 && pag === 'pix') valor = converterValor(v.total);
+    return acc + valor;
+  }, 0);
+
+  const totalCartao = vendasFiltradasCalculos.reduce((acc, v) => {
+    let valor = converterValor(v.cartao);
+    const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
+
+    if (valor === 0 && (pag === 'cartão' || pag === 'cartao')) valor = converterValor(v.total);
+    return acc + valor;
+  }, 0);
+
+  const totalDinheiro = vendasFiltradasCalculos.reduce((acc, v) => {
+    let valor = converterValor(v.dinheiro);
+    const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
+
+    if (valor === 0 && pag === 'dinheiro') valor = converterValor(v.total);
+    return acc + valor;
+  }, 0);
+  // =========================================================================
 
   const dadosGrafico = [
-    { name: 'Pix', valor: getTotalPorTipo('Pix') },
-    { name: 'Cartão', valor: getTotalPorTipo('Cartão') },
-    { name: 'Dinheiro', valor: getTotalPorTipo('Dinheiro') },
+    { name: 'Pix', valor: totalPix },
+    { name: 'Cartão', valor: totalCartao },
+    { name: 'Dinheiro', valor: totalDinheiro },
   ];
 
   const eficiencia = totalBruto > 0 ? ((totalLiquido / totalBruto) * 100).toFixed(1) : 0;
 
-  // Função para deixar o valor em formato de Moeda (R$ 1.234,00)
   const formatarMoeda = (valor) => {
-    return valor.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    return converterValor(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
 
   return (
     <div className="container-resultados">
       <header className="header-resultados">
         <div className="header-titulo-resultados">
-          <h1 style={{ margin: 0 }}>Relatório de Resultados</h1>
+          <h1>Relatório de Resultados</h1>
         </div>
         
         <div className="controles-filtro">
@@ -106,16 +130,10 @@ const Resultados = () => {
             onChange={(e) => setDataSelecionada(e.target.value)}
           />
           <div className="seletor-tempo">
-            <button 
-              className={filtro === 'dia' ? 'active' : ''} 
-              onClick={() => setFiltro('dia')}
-            >
+            <button className={filtro === 'dia' ? 'active' : ''} onClick={() => setFiltro('dia')}>
               <FaCalendarDay /> Dia
             </button>
-            <button 
-              className={filtro === 'mes' ? 'active' : ''} 
-              onClick={() => setFiltro('mes')}
-            >
+            <button className={filtro === 'mes' ? 'active' : ''} onClick={() => setFiltro('mes')}>
               <FaCalendarDays /> Mês
             </button>
           </div>
@@ -127,7 +145,7 @@ const Resultados = () => {
           <div className="card-resumo bruto">
             <div className="resumo-icon"><FaArrowTrendUp /></div>
             <div className="resumo-texto">
-              <span>Total Bruto {filtro === 'dia' ? `(${dataBuscaBR})` : `(${mesBuscaBR})`}</span>
+              <span>Faturamento Bruto {filtro === 'dia' ? `(${dataBuscaBR})` : `(${mesBuscaBR})`}</span>
               <h3>{formatarMoeda(totalBruto)}</h3>
             </div>
           </div>
@@ -151,14 +169,17 @@ const Resultados = () => {
 
         <div className="conteudo-inferior">
           <section className="card-grafico">
-            <h2><FaReceipt /> Vendas por Tipo de Pagamento</h2>
+            <h2><FaReceipt /> Divisão de Recebimentos</h2>
             <div className="grafico-container">
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={dadosGrafico}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" />
-                  <YAxis />
-                  <Tooltip cursor={{fill: '#f5f5f5'}} formatter={(value) => formatarMoeda(value)} />
+                  <YAxis tickFormatter={(value) => `R$ ${value}`} />
+                  <Tooltip 
+                    cursor={{fill: '#f5f5f5'}} 
+                    formatter={(value) => formatarMoeda(value)} 
+                  />
                   <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
                     {dadosGrafico.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={index === 0 ? '#2fd33d' : index === 1 ? '#1976d2' : '#2E7D32'} />
@@ -172,58 +193,54 @@ const Resultados = () => {
           <section className="card-detalhes">
             <h2>Resumo Operacional</h2>
             <div className="linha-detalhe">
-              <span>Total de Vendas Pix:</span>
-              <strong>{formatarMoeda(dadosGrafico[0].valor)}</strong>
+              <span>Total em Pix:</span>
+              <strong>{formatarMoeda(totalPix)}</strong>
             </div>
             <div className="linha-detalhe">
-              <span>Total de Vendas Cartão:</span>
-              <strong>{formatarMoeda(dadosGrafico[1].valor)}</strong>
+              <span>Total em Cartão:</span>
+              <strong>{formatarMoeda(totalCartao)}</strong>
             </div>
             <div className="linha-detalhe">
-              <span>Total de Vendas Dinheiro:</span>
-              <strong>{formatarMoeda(dadosGrafico[2].valor)}</strong>
+              <span>Total em Dinheiro:</span>
+              <strong>{formatarMoeda(totalDinheiro)}</strong>
             </div>
             <hr />
             <div className="linha-detalhe total">
               <span>Eficiência de Caixa:</span>
               <strong style={{color: eficiencia > 70 ? '#2E7D32' : '#D32F2F'}}>{eficiencia}%</strong>
             </div>
-            <p className="obs-relatorio">* Considera apenas vendas PAGAS e sangrias do período selecionado.</p>
+            <p className="obs-relatorio">* Valores baseados nos recebimentos reais (inclui pagamentos mistos).</p>
           </section>
         </div>
 
         <section className="card-lista-vendas">
-          <h2><FaList /> Detalhamento de Vendas do Período</h2>
+          <h2><FaList /> Detalhamento das Movimentações</h2>
           <div className="tabela-vendas-container">
-            {vendasFiltradasTabela.length > 0 ? (
+            {filtrarDados(vendas, true).length > 0 ? (
               <table className="tabela-vendas">
                 <thead>
                   <tr>
-                    <th>Data do Pedido</th>
-                    <th>Data do Pagamento</th>
+                    <th>Data Pedido</th>
+                    <th>Pagamento</th>
                     <th>Cliente</th>
                     <th>Itens</th>
-                    <th>Pagamento</th>
+                    <th>Meio</th>
                     <th>Valor</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {vendasFiltradasTabela.slice().reverse().map((venda) => (
+                  {filtrarDados(vendas, true).slice().reverse().map((venda) => (
                     <tr key={venda.id}>
-                      <td>{venda.data}</td>
-                      <td style={{ color: (venda.status === 'Pendente' || venda.status === 'Em Rota') ? '#D32F2F' : '#2E7D32', fontWeight: 'bold' }}>
-                        {venda.status === 'Pendente' ? 'Aguardando Pagamento' : 
-                         venda.status === 'Em Rota' ? 'Na Rua (Aguardando)' : 
-                         (venda.data_pagamento || venda.data)}
+                      <td>{venda.data?.split(',')[0]}</td>
+                      <td style={{ color: (venda.status?.toLowerCase() === 'pago') ? '#2E7D32' : '#D32F2F', fontWeight: 'bold' }}>
+                        {venda.status?.toLowerCase() === 'pago' ? (venda.data_pagamento?.split(',')[0] || 'Ok') : venda.status}
                       </td>
-                      <td><strong>{venda.nome_cliente || venda.cliente || 'Balcão'}</strong></td>
-                      
+                      <td><strong>{venda.nome_cliente || 'Balcão'}</strong></td>
                       <td className="itens-td">
                         {Array.isArray(venda.itens) 
                           ? venda.itens.map(item => `${item.quantidade}x ${item.produto_nome}`).join(', ') 
-                          : venda.itens || "Sem itens"}
+                          : "Consulte o pedido"}
                       </td>
-                      
                       <td>
                         <span className={`badge-pagamento ${venda.pagamento?.toLowerCase() || 'pendente'}`}>
                           {venda.pagamento || 'A receber'}
@@ -235,7 +252,7 @@ const Resultados = () => {
                 </tbody>
               </table>
             ) : (
-              <p className="sem-vendas">Nenhuma venda registrada para este período.</p>
+              <p className="sem-vendas">Nenhuma venda encontrada para este filtro.</p>
             )}
           </div>
         </section>
@@ -244,4 +261,4 @@ const Resultados = () => {
   );
 };
 
-export default Resultados; 
+export default Resultados;

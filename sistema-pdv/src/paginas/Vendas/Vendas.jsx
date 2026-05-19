@@ -21,8 +21,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
   const { setErroConexao } = useContext(ConexaoContext);
   const dataAtual = new Date().toLocaleDateString('pt-BR');
 
-  // --- FUNÇÃO DE FORMATAÇÃO DE MOEDA ---
-  // Transforma 1500.5 em "1.500,50" apenas para exibição na tela
+  // Formata os valores para exibição (R$ 0.000,00)
   const formatarValorBR = (valor) => {
     return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
@@ -30,9 +29,8 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
   const carregarProdutos = async () => {
     try {
       const res = await fetch('http://localhost:5000/api/produtos');
-      if (!res.ok) throw new Error("Erro ao carregar");
-      const dados = await res.json();
-      setProdutos(dados);
+      if (!res.ok) throw new Error("Erro ao carregar produtos");
+      setProdutos(await res.json());
       setErroConexao(false);
     } catch (error) {
       console.error("Erro ao carregar produtos:", error);
@@ -45,11 +43,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       const res = await fetch('http://localhost:5000/api/vendas');
       if (res.ok) {
         const vendas = await res.json();
-        const vendasDeHoje = vendas.filter(venda => {
-          if (!venda.data) return false;
-          const dataDaVenda = venda.data.split(',')[0].trim(); 
-          return dataDaVenda === dataAtual;
-        });
+        const vendasDeHoje = vendas.filter(venda => venda.data && venda.data.split(',')[0].trim() === dataAtual);
         setNumeroVenda(vendasDeHoje.length + 1);
       }
     } catch (error) {
@@ -62,11 +56,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       const res = await fetch('http://localhost:5000/api/aberturas');
       if (res.ok) {
         const aberturas = await res.json();
-        const temAberturaHoje = aberturas.some(a => {
-          if (!a.data) return false;
-          const dataDaAbertura = a.data.split(/[, ]+/)[0].trim(); 
-          return dataDaAbertura === dataAtual;
-        });
+        const temAberturaHoje = aberturas.some(a => a.data && a.data.split(/[, ]+/)[0].trim() === dataAtual);
         setCaixaAberto(temAberturaHoje);
       }
     } catch (error) {
@@ -89,13 +79,9 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       return;
     }
 
-    const precoVenda = prodEstoque.unidade === 'kg' ? prodEstoque.vKG : prodEstoque.vVenda;
-
     if (itemExistente) {
       if (prodEstoque.unidade === 'un') {
-        setCarrinho(carrinho.map(item =>
-          item.id === prodEstoque.id ? { ...item, qtd: item.qtd + 1 } : item
-        ));
+        setCarrinho(carrinho.map(item => item.id === prodEstoque.id ? { ...item, qtd: item.qtd + 1 } : item));
       } else {
         alert("Este produto já está no carrinho. Ajuste o peso no resumo lateral.");
       }
@@ -103,7 +89,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       setCarrinho([...carrinho, { 
         id: prodEstoque.id, 
         nome: prodEstoque.nome, 
-        preco: precoVenda, 
+        preco: prodEstoque.unidade === 'kg' ? prodEstoque.vKG : prodEstoque.vVenda, 
         unidade: prodEstoque.unidade,
         qtd: prodEstoque.unidade === 'un' ? 1 : '' 
       }]);
@@ -113,17 +99,13 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
   const diminuirItem = (id) => {
     const item = carrinho.find(item => item.id === id);
     if (item.qtd > 1) {
-      setCarrinho(carrinho.map(item =>
-        item.id === id ? { ...item, qtd: item.qtd - 1 } : item
-      ));
+      setCarrinho(carrinho.map(item => item.id === id ? { ...item, qtd: item.qtd - 1 } : item));
     } else {
       removerItem(id);
     }
   };
 
-  const removerItem = (id) => {
-    setCarrinho(carrinho.filter(item => item.id !== id));
-  };
+  const removerItem = (id) => setCarrinho(carrinho.filter(item => item.id !== id));
 
   const alterarPesoManual = (id, valor) => {
     const prodOriginal = produtos.find(p => p.id === id);
@@ -131,9 +113,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       alert(`Produto esgotado no estoque!`);
       return;
     }
-    setCarrinho(carrinho.map(item =>
-      item.id === id ? { ...item, qtd: valor === '' ? '' : valor } : item
-    ));
+    setCarrinho(carrinho.map(item => item.id === id ? { ...item, qtd: valor === '' ? '' : valor } : item));
   };
 
   const novaVenda = () => {
@@ -143,11 +123,49 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
     setIsModalOpen(false);
   };
 
-  const confirmarPedido = async (metodoPagamento, telefoneOpcional = null) => {
+  const totalGeral = carrinho.reduce((acc, item) => acc + (item.preco * (parseFloat(item.qtd) || 0)), 0);
+
+  // --- ATUALIZAÇÃO FEITA AQUI ---
+  const confirmarPedido = async (metodoSelecionado, detalhesPagamento = null) => {
     const itensVazios = carrinho.some(item => item.unidade === 'kg' && (item.qtd === '' || parseFloat(item.qtd) <= 0));
     if (itensVazios) {
         alert("Preencha o peso (kg) de todos os itens antes de finalizar.");
         return;
+    }
+
+    let descricaoPagamento = metodoSelecionado;
+    let telefoneSalvar = null;
+    
+    // VARIÁVEIS PARA SALVAR O VALOR SEPARADO DE CADA MÉTODO
+    let valDinheiro = 0;
+    let valPix = 0;
+    let valCartao = 0;
+
+    // Converte o que chega do modal para minúsculo para evitar erros (ex: "Pix" vs "PIX")
+    const metodoLower = metodoSelecionado ? String(metodoSelecionado).toLowerCase().trim() : '';
+
+    if (metodoLower === 'múltiplo' || metodoLower === 'multiplo') {
+      if (detalhesPagamento) {
+        valDinheiro = parseFloat(detalhesPagamento.Dinheiro) || 0;
+        valPix = parseFloat(detalhesPagamento.PIX) || 0;
+        valCartao = parseFloat(detalhesPagamento.Cartao) || 0;
+
+        const partes = [];
+        if (valDinheiro > 0) partes.push(`Dinheiro: R$ ${formatarValorBR(valDinheiro)}`);
+        if (valPix > 0) partes.push(`PIX: R$ ${formatarValorBR(valPix)}`);
+        if (valCartao > 0) partes.push(`Cartão: R$ ${formatarValorBR(valCartao)}`);
+        
+        descricaoPagamento = `Múltiplo (${partes.join(' | ')})`;
+      }
+    } else {
+      // Se for método único, garantimos a leitura correta
+      if (metodoLower === 'dinheiro') valDinheiro = totalGeral;
+      else if (metodoLower === 'pix') valPix = totalGeral;
+      else if (metodoLower === 'cartão' || metodoLower === 'cartao') valCartao = totalGeral;
+    }
+
+    if (metodoLower === 'pagar depois' && typeof detalhesPagamento === 'string') {
+      telefoneSalvar = detalhesPagamento;
     }
 
     const itensNormalizados = carrinho.map(item => {
@@ -162,11 +180,14 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
 
     const dadosVenda = {
       cliente_nome: cliente,
-      cliente_telefone: telefoneOpcional || null, 
+      cliente_telefone: telefoneSalvar, 
       usuario_id: 1, 
       total: totalGeral,
-      pagamento: isEntrega ? 'Pagar Depois' : metodoPagamento, 
-      status: isEntrega ? 'Pendente' : (metodoPagamento === 'Pagar Depois' ? 'Pendente' : 'Pago'), 
+      pagamento: isEntrega ? 'Pagar Depois' : descricaoPagamento, 
+      dinheiro: valDinheiro,
+      pix: valPix,
+      cartao: valCartao,
+      status: isEntrega ? 'Pendente' : (metodoLower === 'pagar depois' ? 'Pendente' : 'Pago'), 
       data: new Date().toLocaleString('pt-BR'),
       itensArray: itensNormalizados,
       tipo_venda: isEntrega ? 'Entrega' : 'Balcão',
@@ -187,22 +208,17 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       setErroConexao(false);
       
       const foiEntrega = isEntrega;
-      
       novaVenda();
       carregarProdutos(); 
       carregarProximoId(); 
 
-      if (foiEntrega && irParaRotas) {
-        irParaRotas();
-      }
+      if (foiEntrega && irParaRotas) irParaRotas();
 
     } catch (error) {
       console.error("Erro na finalização:", error);
       setErroConexao(true);
     }
   };
-
-  const totalGeral = carrinho.reduce((acc, item) => acc + (item.preco * (parseFloat(item.qtd) || 0)), 0);
 
   return (
     <div className="container-vendas">
@@ -263,7 +279,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
                 )}
                 <span className="nome-prod">{prod.nome}</span>
                 <span className="preco-prod">
-                  {/* FORMATAÇÃO APLICADA AQUI NO CATÁLOGO */}
                   R$ {formatarValorBR(prod.unidade === 'kg' ? prod.vKG : prod.vVenda)}
                   {prod.unidade === 'kg' ? '/kg' : ''}
                 </span>
@@ -312,7 +327,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
                 <div key={item.id} className="item-linha">
                   <div className="info-principal">
                     <span className="nome">{item.nome}</span>
-                    {/* FORMATAÇÃO APLICADA NO PREÇO UNITÁRIO DO ITEM */}
                     <small>R$ {formatarValorBR(item.preco)} / {item.unidade}</small>
                   </div>
                   <div className="controle-qtd">
@@ -338,7 +352,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
                       </div>
                     )}
                   </div>
-                  {/* FORMATAÇÃO APLICADA NO SUBTOTAL DA LINHA */}
                   <div className="subtotal"><span>R$ {formatarValorBR(item.preco * (parseFloat(item.qtd) || 0))}</span></div>
                   <button className="btn-lixeira" onClick={() => removerItem(item.id)}><FaTrash /></button>
                 </div>
@@ -349,7 +362,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
         <div className="rodape-pedido">
           <div className="linha-total">
             <span>VALOR TOTAL</span>
-            {/* FORMATAÇÃO APLICADA NO VALOR TOTAL */}
             <span className="valor-total">R$ {formatarValorBR(totalGeral)}</span>
           </div>
           <div className="botoes-acao">
@@ -370,6 +382,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
           </div>
         </div>
       </aside>
+      
       <ModalPagamento isOpen={isModalOpen} onClose={() => setIsModalOpen(false)}
         valorTotal={totalGeral.toFixed(2)} onConfirm={confirmarPedido} />
     </div>

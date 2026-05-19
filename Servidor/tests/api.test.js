@@ -1,5 +1,5 @@
 const request = require('supertest');
-const app = require('../Server'); // Puxa o seu servidor para testar
+const app = require('../Server'); // Puxa o servidor para testar
 
 describe("✅ Testes Funcionais - API TopFrango", () => {
     

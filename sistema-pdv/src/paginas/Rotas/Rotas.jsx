@@ -147,7 +147,7 @@ const Rotas = () => {
       return;
     }
     try {
-      // Cidade alterada para Madalena e adicionado Estado e País para maior precisão
+      
       const query = `${endereco} Madalena Ceará`;
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
       const data = await res.json();
@@ -194,15 +194,39 @@ const Rotas = () => {
     }
   };
 
-  const finalizarBaixaRota = async (metodoPagamentoReal) => {
+  const finalizarBaixaRota = async (metodoPagamento, detalhesExtras) => {
     try {
       const telefoneLimpo = telefone.replace(/\D/g, '');
+      
+      // 1. Descobrimos para qual coluna vai o dinheiro
+      let valorDinheiro = 0;
+      let valorPix = 0;
+      let valorCartao = 0;
+
+      if (metodoPagamento === 'Múltiplo' && detalhesExtras) {
+        // Se for dividido, pega os valores exatos que o Modal mandou
+        valorDinheiro = detalhesExtras.Dinheiro || 0;
+        valorPix = detalhesExtras.PIX || 0;
+        valorCartao = detalhesExtras.Cartao || 0;
+      } else if (metodoPagamento === 'Dinheiro') {
+        // Se foi tudo em dinheiro, pega o total do pedido
+        valorDinheiro = pedidoSelecionado.total;
+      } else if (metodoPagamento === 'PIX') {
+        valorPix = pedidoSelecionado.total;
+      } else if (metodoPagamento === 'Cartão' || metodoPagamento === 'Cartao') {
+        valorCartao = pedidoSelecionado.total;
+      }
+
+      // 2. Disparamos para o servidor com tudo preenchido
       const response = await fetch(`http://localhost:5000/api/vendas/${pedidoSelecionado.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           status: 'Pago', 
-          pagamento: metodoPagamentoReal,
+          pagamento: metodoPagamento,
+          dinheiro: valorDinheiro,
+          pix: valorPix,
+          cartao: valorCartao,
           endereco: endereco,
           telefone: telefoneLimpo, 
           lat: destino[0],
@@ -211,7 +235,7 @@ const Rotas = () => {
       });
 
       if (response.ok) {
-        alert(`Entrega concluída!`);
+        alert(`Entrega concluída! Valores registrados certinhos no caixa.`);
         setIsModalOpen(false);
         resetarCampos();
         carregarPedidos(); 

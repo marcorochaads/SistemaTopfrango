@@ -15,7 +15,6 @@ const Caixa = () => {
   const [isBatimentoOpen, setIsBatimentoOpen] = useState(false);
   const [isAberturaOpen, setIsAberturaOpen] = useState(false);
   
-  // Os estados agora recebem a string mascarada (ex: "1.500,00")
   const [valorSangria, setValorSangria] = useState('');
   const [valorFisico, setValorFisico] = useState(''); 
   const [valorAbertura, setValorAbertura] = useState('');
@@ -24,13 +23,10 @@ const Caixa = () => {
   const dataHoje = new Date().toLocaleDateString('pt-BR');
 
   // --- FUNÇÕES DE FORMATAÇÃO E MÁSCARAS ---
-
-  // Formata qualquer número para o padrão BR de exibição (ex: 1500.5 -> "1.500,50")
   const formatarValorBR = (valor) => {
     return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
-  // Aplica a máscara de dinheiro enquanto o usuário digita nos modais
   const aplicarMascaraDinheiro = (valor) => {
     let v = String(valor).replace(/\D/g, ''); 
     if (v === '') return '';
@@ -40,7 +36,6 @@ const Caixa = () => {
     return v;
   };
 
-  // Converte a string mascarada de volta para número na hora de salvar no banco
   const parseDinheiro = (str) => {
     if (!str) return 0;
     return parseFloat(String(str).replace(/\./g, '').replace(',', '.'));
@@ -81,21 +76,46 @@ const Caixa = () => {
   const caixaAberto = !!aberturaHoje;
   const valorInicial = aberturaHoje ? parseFloat(aberturaHoje.valor) : 0;
 
-  // Cálculos
-  const totalDinheiro = vendasHoje.filter(v => v.pagamento === 'Dinheiro' && v.status === 'Pago').reduce((acc, v) => acc + v.total, 0);
-  const totalPix = vendasHoje.filter(v => v.pagamento === 'PIX' && v.status === 'Pago').reduce((acc, v) => acc + v.total, 0);
-  const totalCartao = vendasHoje.filter(v => v.pagamento === 'Cartão' && v.status === 'Pago').reduce((acc, v) => acc + v.total, 0);
-  const totalSangriasHoje = sangriasHoje.reduce((acc, s) => acc + s.valor, 0);
+  // =========================================================================
+  // CÁLCULOS CORRIGIDOS E BLINDADOS (Idênticos ao do Resultado)
+  // =========================================================================
+  const vendasPagasHoje = vendasHoje.filter(v => v.status && v.status.toLowerCase().trim() === 'pago');
+
+  const totalDinheiro = vendasPagasHoje.reduce((acc, v) => {
+    let valor = Number(v.dinheiro) || 0;
+    const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
+    // Só pega o total bruto SE a coluna dinheiro estiver zerada E o tipo for APENAS 'dinheiro'
+    // Se for 'múltiplo', obedece estritamente o que tá na coluna dinheiro.
+    if (valor === 0 && pag === 'dinheiro') valor = Number(v.total) || 0;
+    return acc + valor;
+  }, 0);
+
+  const totalPix = vendasPagasHoje.reduce((acc, v) => {
+    let valor = Number(v.pix) || 0;
+    const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
+    // Só pega o total bruto SE a coluna pix estiver zerada E o tipo for APENAS 'pix'
+    if (valor === 0 && pag === 'pix') valor = Number(v.total) || 0;
+    return acc + valor;
+  }, 0);
+
+  const totalCartao = vendasPagasHoje.reduce((acc, v) => {
+    let valor = Number(v.cartao) || 0;
+    const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
+    // Só pega o total bruto SE a coluna cartao estiver zerada E o tipo for APENAS 'cartão'/'cartao'
+    if (valor === 0 && (pag === 'cartão' || pag === 'cartao')) valor = Number(v.total) || 0;
+    return acc + valor;
+  }, 0);
+
+  const totalSangriasHoje = sangriasHoje.reduce((acc, s) => acc + Number(s.valor || 0), 0);
   
   // LOGICA: Inicial + Dinheiro que entrou - O que saiu
   const saldoSistema = valorInicial + totalDinheiro - totalSangriasHoje; 
   
-  // Como o valorFisico agora tem máscara, usamos o parseDinheiro para fazer a conta
   const valorFisicoNum = parseDinheiro(valorFisico);
   const diferenca = valorFisicoNum - saldoSistema;
 
   const confirmarAbertura = async () => {
-    const valor = parseDinheiro(valorAbertura); // Usando a conversão nova
+    const valor = parseDinheiro(valorAbertura); 
     if (valor >= 0) {
       try {
         const response = await fetch('http://localhost:5000/api/aberturas', {
@@ -106,7 +126,7 @@ const Caixa = () => {
         if (response.ok) {
           alert("Caixa aberto com sucesso!");
           setIsAberturaOpen(false);
-          setValorAbertura(''); // Limpa o campo
+          setValorAbertura(''); 
           carregarDados();
         }
       } catch (error) { alert("Erro ao abrir caixa."); }
@@ -114,7 +134,7 @@ const Caixa = () => {
   };
 
   const confirmarSangria = async () => {
-    const valor = parseDinheiro(valorSangria); // Usando a conversão nova
+    const valor = parseDinheiro(valorSangria); 
     if (valor > 0) {
       try {
         const response = await fetch('http://localhost:5000/api/sangrias', {
@@ -135,7 +155,6 @@ const Caixa = () => {
   const salvarBatimento = async () => {
     if (!valorFisicoNum && valorFisicoNum !== 0) return alert("Insira o valor contado na gaveta!");
 
-    // BLOQUEIO: Verifica se o turno selecionado já foi batido hoje
     const turnoJaFechado = batimentosHoje.some(b => b.turno === turno);
     if (turnoJaFechado) {
       return alert(`Atenção: O ${turno} já foi fechado hoje! Escolha outro turno ou verifique o histórico.`);
@@ -145,7 +164,7 @@ const Caixa = () => {
       data: new Date().toLocaleString('pt-BR'), 
       turno,
       valor_sistema: saldoSistema,
-      valor_fisico: valorFisicoNum, // Salva o número limpo
+      valor_fisico: valorFisicoNum, 
       pix: totalPix,
       cartao: totalCartao,
       diferenca: diferenca,
@@ -199,23 +218,19 @@ const Caixa = () => {
             <div className="grid-valores">
               <div className="item-valor abertura-cor">
                 <span>Fundo de Caixa (Abertura)</span>
-                {/* Formatação aplicada */}
                 <strong>R$ {formatarValorBR(valorInicial)}</strong>
               </div>
               <div className="item-valor">
                 <span>Vendas em Dinheiro (+)</span>
-                {/* Formatação aplicada */}
                 <strong>R$ {formatarValorBR(totalDinheiro)}</strong>
               </div>
               <div className="item-valor retirada">
                 <span>Sangrias/Retiradas (-)</span>
-                {/* Formatação aplicada */}
                 <strong>- R$ {formatarValorBR(totalSangriasHoje)}</strong>
               </div>
               <hr />
               <div className="item-valor total-liquido">
                 <span>ESPERADO NA GAVETA</span>
-                {/* Formatação aplicada */}
                 <span className="valor-destaque">R$ {formatarValorBR(saldoSistema)}</span>
               </div>
               <div className="item-valor outros-meios">
@@ -249,7 +264,6 @@ const Caixa = () => {
                       <tr key={i}>
                         <td>{b.data.split(' ')[0]}</td>
                         <td>{b.turno}</td>
-                        {/* Formatação aplicada nas tabelas */}
                         <td>R$ {formatarValorBR(b.valor_sistema)}</td>
                         <td>R$ {formatarValorBR(b.valor_fisico)}</td>
                         <td style={{ 
@@ -274,7 +288,6 @@ const Caixa = () => {
           <div className="modal-caixa">
             <h3>Abrir Caixa do Dia</h3>
             <p>Informe o valor que você tem na gaveta para troco:</p>
-            {/* type mudou para text e onChange aplica a máscara */}
             <input 
               type="text" 
               placeholder="0,00" 
@@ -295,7 +308,6 @@ const Caixa = () => {
         <div className="modal-overlay">
           <div className="modal-caixa">
             <h3>Retirada (Sangria)</h3>
-            {/* type mudou para text e onChange aplica a máscara */}
             <input 
               type="text" 
               placeholder="0,00" 
@@ -321,7 +333,6 @@ const Caixa = () => {
               <option value="2º Turno">2º Turno (Fechamento)</option>
             </select>
             
-            {/* type mudou para text e onChange aplica a máscara */}
             <input 
               type="text" 
               placeholder="Quanto tem na gaveta?" 
@@ -330,7 +341,6 @@ const Caixa = () => {
             />
 
             <div className="resultado-batimento">
-              {/* Formatação aplicada */}
               <div className="info-linha"><span>Sistema espera:</span> <strong>R$ {formatarValorBR(saldoSistema)}</strong></div>
               <div className="info-linha">
                 <span>Diferença:</span> 

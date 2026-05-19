@@ -1,6 +1,9 @@
 import React, { useState, createContext } from 'react';
 import './MenuLateral.css'; 
 
+// 1. IMPORTAR O SENTRY
+import * as Sentry from "@sentry/react";
+
 import { 
   FaChartLine, FaClipboardList, FaDollarSign, 
   FaMapMarkerAlt, FaDesktop, FaBoxes, FaUserPlus, FaBars, FaTimes 
@@ -18,11 +21,17 @@ import CadastroUsuario from './paginas/CadastroUsuario/CadastroUsuario';
 
 import AvisoServidor from './componentes/AvisoServidor/AvisoServidor';
 
+Sentry.init({
+  dsn: "https://dc8059428fb11fb8b0bed9605cbadc59@o4511316795588608.ingest.us.sentry.io/4511316812038144", 
+  integrations: [Sentry.browserTracingIntegration()],
+  tracesSampleRate: 1.0,
+});
+
 export const ConexaoContext = createContext();
 
 function App() {
   const [telaAtual, setTelaAtual] = useState('login'); 
-  const [usuarioLogado, setUsuarioLogado] = useState(null); // NOVO: Guarda quem acessou o sistema
+  const [usuarioLogado, setUsuarioLogado] = useState(null);
   const [pedidos, setPedidos] = useState([]);
   const [proximoId, setProximoId] = useState(1);
   const [erroConexao, setErroConexao] = useState(false);
@@ -39,7 +48,6 @@ function App() {
     setProximoId(proximoId + 1);
   };
 
-  // Função que recebe os dados do Login.jsx
   const aoLogarSucesso = (dadosUsuario) => {
     setUsuarioLogado(dadosUsuario);
     setTelaAtual('menu');
@@ -56,17 +64,13 @@ function App() {
     { id: 'usuarios', titulo: 'Usuários', icone: <FaUserPlus size={20} /> }
   ];
 
-  // NOVO: Lógica que esconde os menus do funcionário comum
   const itensMenuFiltrados = itensMenu.filter(item => {
     if (!usuarioLogado) return false;
-    if (usuarioLogado.nivel === 'admin') return true; // Admin vê tudo
-    
-    // Funcionário (Caixa) só vê estes menus abaixo:
+    if (usuarioLogado.nivel === 'admin') return true;
     const telasPermitidas = ['menu', 'vendas', 'pedidos', 'caixa', 'rotas'];
     return telasPermitidas.includes(item.id);
   });
 
-  // Determinar qual conteúdo renderizar
   let conteudo;
   if (telaAtual === 'login') {
     return <Login aoLogar={aoLogarSucesso} />; 
@@ -90,7 +94,7 @@ function App() {
         proximoId={proximoId} 
         aoFinalizar={salvarNovoPedido} 
         irParaCaixa={() => setTelaAtual('caixa')} 
-        irParaRotas={() => setTelaAtual('rotas')} /* <--- A CORREÇÃO ESTÁ AQUI! */
+        irParaRotas={() => setTelaAtual('rotas')}
       />
     );
   } else if (telaAtual === 'pedidos') {
@@ -107,45 +111,66 @@ function App() {
     conteudo = <CadastroUsuario aoVoltar={() => setTelaAtual('menu')} />;
   }
 
-  
   const mostrarHamburguer = telaAtual !== 'login' && telaAtual !== 'menu';
 
   return (
-    <ConexaoContext.Provider value={{ setErroConexao }}>
-      <div className="layout-app">
-        {erroConexao && <AvisoServidor aoTentarNovamente={() => window.location.reload()} />}
+    <Sentry.ErrorBoundary fallback={<p style={{padding: '20px', textAlign: 'center'}}>Ocorreu um erro inesperado. O suporte técnico foi notificado.</p>}>
+      <ConexaoContext.Provider value={{ setErroConexao }}>
+        <div className="layout-app">
+          {erroConexao && <AvisoServidor aoTentarNovamente={() => window.location.reload()} />}
 
-        {mostrarHamburguer && (
-          <button className="btn-hamburguer-flutuante" onClick={() => setMenuAberto(true)}>
-            <FaBars />
-          </button>
-        )}
+          {mostrarHamburguer && (
+            <button className="btn-hamburguer-flutuante" onClick={() => setMenuAberto(true)}>
+              <FaBars />
+            </button>
+          )}
 
-        {menuAberto && <div className="overlay-menu" onClick={() => setMenuAberto(false)}></div>}
+          {menuAberto && <div className="overlay-menu" onClick={() => setMenuAberto(false)}></div>}
 
-        <nav className={`menu-lateral ${menuAberto ? 'aberto' : ''}`}>
-          <div className="cabecalho-menu">
-            <h3>Menu Rápido</h3>
-            <button className="btn-fechar-menu" onClick={() => setMenuAberto(false)}><FaTimes /></button>
-          </div>
-          <div className="lista-menu">
-            {itensMenuFiltrados.map((item) => (
-              <div key={item.id} className={`menu-card ${telaAtual === item.id ? 'ativo' : ''}`}
-                onClick={() => { setTelaAtual(item.id); setMenuAberto(false); }}>
-                <div className="menu-textos">
-                  <span className="menu-titulo">{item.titulo}</span>
+          <nav className={`menu-lateral ${menuAberto ? 'aberto' : ''}`}>
+            <div className="cabecalho-menu">
+              <h3>Menu Rápido</h3>
+              <button className="btn-fechar-menu" onClick={() => setMenuAberto(false)}><FaTimes /></button>
+            </div>
+            <div className="lista-menu">
+              {itensMenuFiltrados.map((item) => (
+                <div key={item.id} className={`menu-card ${telaAtual === item.id ? 'ativo' : ''}`}
+                  onClick={() => { setTelaAtual(item.id); setMenuAberto(false); }}>
+                  <div className="menu-textos">
+                    <span className="menu-titulo">{item.titulo}</span>
+                  </div>
+                  <div className="menu-icone">{item.icone}</div>
                 </div>
-                <div className="menu-icone">{item.icone}</div>
-              </div>
-            ))}
-          </div>
-        </nav>
+              ))}
 
-        <main className="conteudo-telas">
-          {conteudo}
-        </main>
-      </div>
-    </ConexaoContext.Provider>
+              {/* BOTÃO DE TESTE SENTRY REINSERIDO ABAIXO */}
+              <button 
+                onClick={() => { throw new Error("Erro de Teste Sentry disparado manualmente!"); }}
+                style={{
+                  marginTop: '30px',
+                  backgroundColor: 'transparent',
+                  color: '#ff4d4d',
+                  border: '1px solid #ff4d4d',
+                  padding: '8px',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontSize: '0.7rem',
+                  width: '80%',
+                  alignSelf: 'center',
+                  opacity: 0.6
+                }}
+              >
+                🛠️ Testar Sentry
+              </button>
+            </div>
+          </nav>
+
+          <main className="conteudo-telas">
+            {conteudo}
+          </main>
+        </div>
+      </ConexaoContext.Provider>
+    </Sentry.ErrorBoundary>
   );
 }
 
