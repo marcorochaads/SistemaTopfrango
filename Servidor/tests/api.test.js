@@ -1,15 +1,12 @@
 const request = require('supertest');
-const app = require('../Server'); // Puxa o servidor para testar
-
-describe("✅ Testes Funcionais - API TopFrango", () => {
+const app = require('../Server'); 
+describe("Testes Funcionais - API TopFrango", () => {
     
     // TESTE 1: Verificar se a rota de produtos está funcionando
     it("Teste 1: Deve retornar status 200 e uma lista ao buscar produtos", async () => {
         const response = await request(app).get('/api/produtos');
         
-        // Esperamos que o servidor responda com OK (200)
         expect(response.statusCode).toBe(200);
-        // Esperamos que o resultado seja um Array (uma lista)
         expect(Array.isArray(response.body)).toBeTruthy();
     });
 
@@ -19,10 +16,32 @@ describe("✅ Testes Funcionais - API TopFrango", () => {
             .post('/api/login')
             .send({ usuario: 'hacker_invasor', senha: 'senha_errada_123' });
         
-        // Esperamos que o servidor bloqueie (401 Unauthorized)
         expect(response.statusCode).toBe(401);
-        // Esperamos que a API retorne uma mensagem de erro
         expect(response.body).toHaveProperty('error');
+    });
+
+    // TESTE 3: Verificar a rota de Clientes
+    it("Teste 3: Deve retornar status 200 e uma lista ao buscar clientes", async () => {
+        const response = await request(app).get('/api/clientes');
+        
+        expect(response.statusCode).toBe(200);
+        expect(Array.isArray(response.body)).toBeTruthy();
+    });
+
+    // TESTE 4: Verificar a rota de Histórico de Vendas
+    it("Teste 4: Deve retornar status 200 e buscar todas as vendas", async () => {
+        const response = await request(app).get('/api/vendas');
+        
+        expect(response.statusCode).toBe(200);
+        expect(Array.isArray(response.body)).toBeTruthy();
+    });
+
+    // TESTE 5: Verificar a rota de Usuários
+    it("Teste 5: Deve retornar status 200 e a lista de usuários do sistema", async () => {
+        const response = await request(app).get('/api/usuarios');
+        
+        expect(response.statusCode).toBe(200);
+        expect(Array.isArray(response.body)).toBeTruthy();
     });
 
 });
