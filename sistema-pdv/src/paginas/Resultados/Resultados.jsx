@@ -52,36 +52,28 @@ const Resultados = () => {
     });
   };
 
-  // =========================================================================
-  // FUNÇÃO DE SEGURANÇA PARA CONVERTER NÚMEROS (Evita erros com "50,00" vs "50.00")
-  // =========================================================================
   const converterValor = (valor) => {
     if (!valor) return 0;
     if (typeof valor === 'number') return valor;
-    // Transforma string com vírgula em ponto e converte para número
     const numero = Number(String(valor).replace(',', '.'));
     return isNaN(numero) ? 0 : numero;
   };
 
-  // 1. Filtragem de segurança: Ignora maiúsculas/minúsculas no status "Pago"
+  // 1. Filtragem de vendas pagas
   const vendasFiltradasCalculos = filtrarDados(vendas, true).filter(
     v => v.status && v.status.toLowerCase().trim() === 'pago'
   );
   
   const sangriasFiltradas = filtrarDados(sangrias, false);
 
-  // 2. Cálculos Globais (Usando o conversor de segurança)
+  // 2. Cálculos Globais
   const totalBruto = vendasFiltradasCalculos.reduce((acc, v) => acc + converterValor(v.total), 0);
   const totalRetiradas = sangriasFiltradas.reduce((acc, s) => acc + converterValor(s.valor), 0);
-  const totalLiquido = totalBruto - totalRetiradas;
 
-  // =========================================================================
-  // 3. CÁLCULOS CORRIGIDOS E BLINDADOS (Ignora maiúsculas/minúsculas da string)
-  // =========================================================================
+  // Separando as formas de pagamento
   const totalPix = vendasFiltradasCalculos.reduce((acc, v) => {
     let valor = converterValor(v.pix);
     const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
-    
     if (valor === 0 && pag === 'pix') valor = converterValor(v.total);
     return acc + valor;
   }, 0);
@@ -89,7 +81,6 @@ const Resultados = () => {
   const totalCartao = vendasFiltradasCalculos.reduce((acc, v) => {
     let valor = converterValor(v.cartao);
     const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
-
     if (valor === 0 && (pag === 'cartão' || pag === 'cartao')) valor = converterValor(v.total);
     return acc + valor;
   }, 0);
@@ -97,11 +88,14 @@ const Resultados = () => {
   const totalDinheiro = vendasFiltradasCalculos.reduce((acc, v) => {
     let valor = converterValor(v.dinheiro);
     const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
-
     if (valor === 0 && pag === 'dinheiro') valor = converterValor(v.total);
     return acc + valor;
   }, 0);
+
   // =========================================================================
+  // SALDO EM CAIXA (Espécie) = Apenas Dinheiro físico - Retiradas
+  // =========================================================================
+  const totalLiquido = totalDinheiro - totalRetiradas;
 
   const dadosGrafico = [
     { name: 'Pix', valor: totalPix },

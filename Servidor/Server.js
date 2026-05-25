@@ -14,9 +14,32 @@ app.use(cors());
 
 let db;
 const DB_NAME = './topfrango.db';
-const BACKUP_DIR = path.join(__dirname, 'backups');
+
+const obterCaminhoDrive = () => {
+    const letras = ['G', 'H', 'I', 'D', 'E', 'F'];
+    for (let letra of letras) {
+        const caminhoBase = `${letra}:/Meu Drive`;
+        if (fs.existsSync(caminhoBase)) {
+            return `${caminhoBase}/Backups_TopFrango`;
+        }
+    }
+    // Plano B: se o Google Drive não estiver rodando no PC, salva na mesma pasta do .exe
+    return path.join(__dirname, 'Backups_Emergencia');
+};
+
+const BACKUP_DIR = obterCaminhoDrive();
 
 const realizarBackup = () => {
+    // Garante que a pasta de backup exista
+    if (!fs.existsSync(BACKUP_DIR)) {
+        try {
+            fs.mkdirSync(BACKUP_DIR, { recursive: true });
+        } catch (err) {
+            console.error("❌ Erro ao criar a pasta de backup:", err);
+            return;
+        }
+    }
+
     const agora = new Date();
     const dataFmt = agora.toISOString().replace(/T/, '_').replace(/\..+/, '').replace(/:/g, '-');
     const nomeArquivo = `backup-topfrango-${dataFmt}.sqlite`;
@@ -25,8 +48,9 @@ const realizarBackup = () => {
     fs.copyFile(DB_NAME, destino, (err) => {
         if (err) {
             console.error("❌ Erro ao criar backup:", err);
+            Sentry.captureException(err); // Avisa se der erro
         } else {
-            console.log(`💾 Backup realizado com sucesso: ${nomeArquivo}`);
+            console.log(`💾 Backup salvo com sucesso: ${destino}`);
             limparBackupsAntigos();
         }
     });
@@ -35,11 +59,20 @@ const realizarBackup = () => {
 const limparBackupsAntigos = () => {
     fs.readdir(BACKUP_DIR, (err, arquivos) => {
         if (err) return;
-        if (arquivos.length > 7) {
-            const arquivosOrdenados = arquivos.sort();
-            fs.unlink(path.join(BACKUP_DIR, arquivosOrdenados[0]), (err) => {
-                if (!err) console.log("🗑️ Backup antigo removido para otimizar espaço.");
-            });
+        
+        // Filtra só os arquivos de backup para não apagar nada errado
+        const backups = arquivos.filter(f => f.startsWith('backup-topfrango'));
+        
+        // Mantém apenas os 10 últimos backups (ideal para o turno da manhã)
+        if (backups.length > 10) {
+            const arquivosOrdenados = backups.sort(); 
+            const quantosApagar = backups.length - 10;
+            
+            for (let i = 0; i < quantosApagar; i++) {
+                fs.unlink(path.join(BACKUP_DIR, arquivosOrdenados[i]), (err) => {
+                    if (!err) console.log(`🗑️ Backup antigo removido para otimizar espaço: ${arquivosOrdenados[i]}`);
+                });
+            }
         }
     });
 };
@@ -140,9 +173,6 @@ const limparBackupsAntigos = () => {
         );
     `);
 
-    // ==============================================================
-    // ATUALIZAÇÃO AUTOMÁTICA DA TABELA DE VENDAS
-    // ==============================================================
     const colunasVendas = await db.all("PRAGMA table_info(vendas)");
     const nomesColunasVendas = colunasVendas.map(c => c.name);
 
@@ -151,11 +181,9 @@ const limparBackupsAntigos = () => {
     if (!nomesColunasVendas.includes('lat')) await db.exec("ALTER TABLE vendas ADD COLUMN lat REAL;");
     if (!nomesColunasVendas.includes('lng')) await db.exec("ALTER TABLE vendas ADD COLUMN lng REAL;");
     
-    // Novas colunas para pagamento dividido
     if (!nomesColunasVendas.includes('dinheiro')) await db.exec("ALTER TABLE vendas ADD COLUMN dinheiro REAL DEFAULT 0;");
     if (!nomesColunasVendas.includes('pix')) await db.exec("ALTER TABLE vendas ADD COLUMN pix REAL DEFAULT 0;");
     if (!nomesColunasVendas.includes('cartao')) await db.exec("ALTER TABLE vendas ADD COLUMN cartao REAL DEFAULT 0;");
-    // ==============================================================
 
     const qtdUsuarios = await db.get('SELECT COUNT(*) as count FROM usuarios');
     if (qtdUsuarios.count === 0) {
@@ -165,15 +193,18 @@ const limparBackupsAntigos = () => {
         );
     }
 
-    if (!fs.existsSync(BACKUP_DIR)) {
-        fs.mkdirSync(BACKUP_DIR);
-    }
-
     console.log("✅ Banco de Dados Normalizado Pronto.");
+    
+    // Faz um backup imediato assim que o servidor liga
     realizarBackup();
 })();
 
-cron.schedule('0 15 * * *', () => {
+// ==========================================
+// MUDANÇA NO AGENDAMENTO: A CADA 1 HORA
+// Expressão Cron '0 * * * *' = Hora cheia
+// ==========================================
+cron.schedule('0 * * * *', () => {
+    console.log("⏰ Realizando backup agendado (A cada 1 hora)...");
     realizarBackup();
 });
 
@@ -184,7 +215,6 @@ app.get('/api/backup/download', (req, res) => {
 // ==========================================
 // ROTAS DE ABERTURA DE CAIXA
 // ==========================================
-
 app.get('/api/aberturas', async (req, res) => {
     try {
         const aberturas = await db.all('SELECT * FROM aberturas ORDER BY id DESC');
@@ -203,7 +233,7 @@ app.post('/api/aberturas', async (req, res) => {
 });
 
 // ==========================================
-// ROTA CORRIGIDA: SALVANDO VALORES DIVIDIDOS NO POST
+// ROTAS DE VENDAS
 // ==========================================
 app.post('/api/vendas', async (req, res) => {
     const { cliente_id, cliente_nome, cliente_telefone, telefone, usuario_id, total, pagamento, dinheiro, pix, cartao, status, data, itensArray } = req.body;
@@ -251,7 +281,6 @@ app.post('/api/vendas', async (req, res) => {
     }
 });
 
-// BUSCAR VENDAS
 app.get('/api/vendas', async (req, res) => {
     try {
         const vendas = await db.all(`
@@ -278,11 +307,7 @@ app.get('/api/vendas', async (req, res) => {
     }
 });
 
-// ==========================================
-// ROTA CORRIGIDA: SALVANDO VALORES DIVIDIDOS NO PUT (UPDATE)
-// ==========================================
 app.put('/api/vendas/:id', async (req, res) => {
-    // Adicionado: dinheiro, pix, cartao
     const { status, pagamento, dinheiro, pix, cartao, endereco, telefone, lat, lng } = req.body;
     const { id } = req.params;
     try {
@@ -294,7 +319,6 @@ app.put('/api/vendas/:id', async (req, res) => {
         const novaLat = lat !== undefined ? lat : atual.lat;
         const novaLng = lng !== undefined ? lng : atual.lng;
         
-        // Mantém o valor atual se não for enviado no request
         const novoDinheiro = dinheiro !== undefined ? dinheiro : atual.dinheiro;
         const novoPix = pix !== undefined ? pix : atual.pix;
         const novoCartao = cartao !== undefined ? cartao : atual.cartao;
@@ -351,6 +375,9 @@ app.delete('/api/vendas/:venda_id/remover-item/:produto_id', async (req, res) =>
     }
 });
 
+// ==========================================
+// ROTAS DE CLIENTES
+// ==========================================
 app.get('/api/clientes', async (req, res) => {
     const clientes = await db.all('SELECT * FROM clientes ORDER BY nome ASC');
     res.json(clientes);
@@ -364,6 +391,9 @@ app.post('/api/clientes', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==========================================
+// ROTAS DE PRODUTOS
+// ==========================================
 app.get('/api/produtos', async (req, res) => {
     const produtos = await db.all('SELECT * FROM produtos ORDER BY nome ASC');
     res.json(produtos);
@@ -403,6 +433,9 @@ app.delete('/api/produtos/:id', async (req, res) => {
     }
 });
 
+// ==========================================
+// ROTAS DE SANGRIAS E BATIMENTOS
+// ==========================================
 app.get('/api/sangrias', async (req, res) => {
     try {
         const sangrias = await db.all('SELECT * FROM sangrias ORDER BY id DESC');
@@ -439,6 +472,9 @@ app.post('/api/batimentos', async (req, res) => {
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
+// ==========================================
+// ROTAS DE USUÁRIOS
+// ==========================================
 app.get('/api/usuarios', async (req, res) => {
     const usuarios = await db.all('SELECT id, nome, login, nivel FROM usuarios ORDER BY nome ASC');
     res.json(usuarios);
@@ -525,17 +561,13 @@ app.delete('/api/usuarios/:id', async (req, res) => {
 // ==========================================
 // TESTE DE OBSERVABILIDADE - SENTRY
 // ==========================================
-
-// 1. Rota que força o erro proativo
 app.get("/debug-sentry", (req, res) => {
   throw new Error("Falha Proativa: teste de telemetria IFCE!");
 });
 
-// 2. Capturador de erros do Sentry
 Sentry.setupExpressErrorHandler(app);
 
 // ==========================================
-
 if (require.main === module) {
     app.listen(5000, () => console.log("🚀 Servidor TopFrango Normalizado rodando na porta 5000"));
 }

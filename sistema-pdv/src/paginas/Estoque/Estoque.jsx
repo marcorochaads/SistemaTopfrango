@@ -11,6 +11,7 @@ const Estoque = () => {
   const [quantidade, setQuantidade] = useState('');
   const [valorKG, setValorKG] = useState('');
   const [isKG, setIsKG] = useState(false);
+  const [isCompraLote, setIsCompraLote] = useState(false); 
   
   // Estado da Lista de Produtos
   const [produtos, setProdutos] = useState([]);
@@ -21,7 +22,7 @@ const Estoque = () => {
 
   // --- FUNÇÕES DE MÁSCARA E CONVERSÃO ---
   const aplicarMascaraDinheiro = (valor) => {
-    let v = valor.replace(/\D/g, ''); // Remove tudo que não for número
+    let v = valor.replace(/\D/g, ''); 
     if (v === '') return '';
     v = (Number(v) / 100).toFixed(2);
     v = v.replace('.', ',');
@@ -83,7 +84,7 @@ const Estoque = () => {
       return;
     }
 
-    if (!isKG && numVenda < numCompra) {
+    if (!isKG && numVenda < numCompra && !isCompraLote) {
       alert(`Erro: Prejuízo detectado! O preço de venda não pode ser inferior ao preço de compra.`);
       return;
     }
@@ -94,7 +95,8 @@ const Estoque = () => {
       vCompra: numCompra,
       vVenda: isKG ? 0 : numVenda,
       vKG: isKG ? numKG : 0,
-      unidade: isKG ? 'kg' : 'un'
+      unidade: isKG ? 'kg' : 'un',
+      isLote: isCompraLote 
     };
 
     try {
@@ -105,9 +107,10 @@ const Estoque = () => {
       });
 
       if (res.ok) {
-        alert("Produto cadastrado com sucesso!");
+        alert("Produto/Lote cadastrado com sucesso!");
         carregarProdutos();
         setNome(''); setValorCompra(''); setValorVenda(''); setQuantidade(''); setValorKG('');
+        setIsCompraLote(false); 
       } else {
         alert("Erro ao guardar o produto na base de dados.");
       }
@@ -150,11 +153,6 @@ const Estoque = () => {
       return;
     }
 
-    if (prodEdit.unidade === 'un' && numVenda < numCompra) {
-      alert("Erro: O novo preço de venda gerará prejuízo!");
-      return;
-    }
-
     const produtoAtualizado = {
       ...prodEdit,
       qtd: numQtd,
@@ -183,7 +181,6 @@ const Estoque = () => {
     }
   };
 
-  // Funções auxiliares para formatação na tabela
   const formatarMoeda = (valor) => {
     return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
   };
@@ -204,65 +201,80 @@ const Estoque = () => {
       <main className="area-estoque">
         <section className="card-formulario">
           <h2>Novo Produto / Cadastro de Lote</h2>
-          <div className="grid-form">
-            <div className="campo-form nome-prod">
-              <label><FaTag /> Nome do produto:</label>
-              <input type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Frango Inteiro" />
+          
+          {/* Adicionado estilo grid diretamente para forçar alinhamento */}
+          <div className="grid-form" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'end', marginBottom: '20px' }}>
+            
+            <div className="campo-form nome-prod" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontWeight: 'bold' }}><FaTag /> Nome do produto:</label>
+              <input type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Frango Inteiro" style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
             </div>
 
-            <div className="campo-form">
-              <label><FaBrazilianRealSign /> Custo de Compra (unidade):</label>
+            {/* Container flex para centralizar o toggle com os inputs de texto */}
+            <div className="campo-form checkbox-kg" style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '42px' }}>
+              <label className="switch" style={{ margin: 0 }}>
+                <input type="checkbox" checked={isCompraLote} onChange={e => setIsCompraLote(e.target.checked)} />
+                <span className="slider round"></span>
+              </label>
+              <span style={{ fontWeight: 'bold', color: '#333' }}>Comprado em Lote?</span>
+            </div>
+
+            <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <label style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> {isCompraLote ? 'Custo de Compra (LOTE):' : 'Custo de Compra (UND):'}</label>
               <input 
                 type="text" 
                 value={valorCompra} 
                 onChange={e => setValorCompra(aplicarMascaraDinheiro(e.target.value))} 
-                placeholder="0,00" 
+                placeholder="0,00"
+                style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} 
               />
             </div>
 
-            <div className="campo-form checkbox-kg">
-              <label className="switch">
+            <div className="campo-form checkbox-kg" style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '42px' }}>
+              <label className="switch" style={{ margin: 0 }}>
                 <input type="checkbox" checked={isKG} onChange={e => setIsKG(e.target.checked)} />
                 <span className="slider round"></span>
               </label>
-              <span>Vendido por KG?</span>
+              <span style={{ fontWeight: 'bold', color: '#333' }}>Vendido por KG?</span>
             </div>
 
             {isKG ? (
               <>
-                <div className="campo-form">
-                  <label>Quantidade (un):</label>
-                  <input type="number" step="any" value={quantidade} onChange={e => setQuantidade(e.target.value)} placeholder="0" />
+                <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontWeight: 'bold' }}>Quantidade {isCompraLote ? 'Total do Lote' : ''} (KG):</label>
+                  <input type="number" step="any" value={quantidade} onChange={e => setQuantidade(e.target.value)} placeholder="0" style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
                 </div>
-                <div className="campo-form">
-                  <label><FaBrazilianRealSign /> Valor do KG:</label>
+                <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> Valor de Venda (KG):</label>
                   <input 
                     type="text" 
                     value={valorKG} 
                     onChange={e => setValorKG(aplicarMascaraDinheiro(e.target.value))} 
-                    placeholder="0,00" 
+                    placeholder="0,00"
+                    style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} 
                   />
                 </div>
               </>
             ) : (
               <>
-                <div className="campo-form">
-                  <label>Quantidade (un):</label>
-                  <input type="number" step="1" value={quantidade} onChange={e => setQuantidade(e.target.value)} placeholder="0" />
+                <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontWeight: 'bold' }}>Quantidade (UN):</label>
+                  <input type="number" step="1" value={quantidade} onChange={e => setQuantidade(e.target.value)} placeholder="0" style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
                 </div>
-                <div className="campo-form">
-                  <label><FaBrazilianRealSign /> Valor da Unidade:</label>
+                <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <label style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> Valor de Venda (UN):</label>
                   <input 
                     type="text" 
                     value={valorVenda} 
                     onChange={e => setValorVenda(aplicarMascaraDinheiro(e.target.value))} 
-                    placeholder="0,00" 
+                    placeholder="0,00"
+                    style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} 
                   />
                 </div>
               </>
             )}
           </div>
-          <button className="btn-adicionar" onClick={adicionarProduto}>
+          <button className="btn-adicionar" onClick={adicionarProduto} style={{ marginTop: '10px' }}>
             <FaPlus /> Salvar no Sistema
           </button>
         </section>
@@ -332,7 +344,7 @@ const Estoque = () => {
               
               {prodEdit.unidade === 'kg' ? (
                 <div className="campo-form">
-                  <label><FaBrazilianRealSign /> Novo Valor do KG:</label>
+                  <label><FaBrazilianRealSign /> Novo Valor de Venda do KG:</label>
                   <input 
                     type="text" 
                     value={prodEdit.vKG} 
@@ -341,7 +353,7 @@ const Estoque = () => {
                 </div>
               ) : (
                 <div className="campo-form">
-                  <label><FaBrazilianRealSign /> Novo Preço de Venda:</label>
+                  <label><FaBrazilianRealSign /> Novo Preço de Venda Unitário:</label>
                   <input 
                     type="text" 
                     value={prodEdit.vVenda} 
@@ -357,7 +369,6 @@ const Estoque = () => {
           </div>
         </div>
       )}
-
     </div>
   );
 };

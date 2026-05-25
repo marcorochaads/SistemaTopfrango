@@ -74,6 +74,12 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
     const itemExistente = carrinho.find(item => item.id === prodEstoque.id);
     const qtdNoCarrinho = itemExistente ? parseFloat(itemExistente.qtd) || 0 : 0;
 
+    // LÓGICA DE ESTOQUE: Bloqueia se não tiver nada no estoque
+    if (prodEstoque.qtd <= 0) {
+      alert("Produto esgotado no estoque!");
+      return;
+    }
+
     if (prodEstoque.unidade === 'un' && qtdNoCarrinho + 1 > prodEstoque.qtd) {
       alert(`Estoque insuficiente! Temos apenas ${prodEstoque.qtd} unidades.`);
       return;
@@ -89,6 +95,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       setCarrinho([...carrinho, { 
         id: prodEstoque.id, 
         nome: prodEstoque.nome, 
+        // LÓGICA DO LOTE: Usa o vKG se for peso, vVenda se for unidade
         preco: prodEstoque.unidade === 'kg' ? prodEstoque.vKG : prodEstoque.vVenda, 
         unidade: prodEstoque.unidade,
         qtd: prodEstoque.unidade === 'un' ? 1 : '' 
@@ -113,6 +120,12 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       alert(`Produto esgotado no estoque!`);
       return;
     }
+    
+    // LÓGICA DO LOTE: Avisa se o atendente digitar um peso maior que o lote inteiro no estoque
+    if (valor !== '' && parseFloat(valor) > prodOriginal.qtd) {
+      alert(`Atenção: O peso digitado (${valor}kg) é maior que o estoque atual disponível (${prodOriginal.qtd}kg)`);
+    }
+
     setCarrinho(carrinho.map(item => item.id === id ? { ...item, qtd: valor === '' ? '' : valor } : item));
   };
 
@@ -125,7 +138,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
 
   const totalGeral = carrinho.reduce((acc, item) => acc + (item.preco * (parseFloat(item.qtd) || 0)), 0);
 
-  // --- ATUALIZAÇÃO FEITA AQUI ---
   const confirmarPedido = async (metodoSelecionado, detalhesPagamento = null) => {
     const itensVazios = carrinho.some(item => item.unidade === 'kg' && (item.qtd === '' || parseFloat(item.qtd) <= 0));
     if (itensVazios) {
@@ -136,12 +148,10 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
     let descricaoPagamento = metodoSelecionado;
     let telefoneSalvar = null;
     
-    // VARIÁVEIS PARA SALVAR O VALOR SEPARADO DE CADA MÉTODO
     let valDinheiro = 0;
     let valPix = 0;
     let valCartao = 0;
 
-    // Converte o que chega do modal para minúsculo para evitar erros (ex: "Pix" vs "PIX")
     const metodoLower = metodoSelecionado ? String(metodoSelecionado).toLowerCase().trim() : '';
 
     if (metodoLower === 'múltiplo' || metodoLower === 'multiplo') {
@@ -158,7 +168,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
         descricaoPagamento = `Múltiplo (${partes.join(' | ')})`;
       }
     } else {
-      // Se for método único, garantimos a leitura correta
       if (metodoLower === 'dinheiro') valDinheiro = totalGeral;
       else if (metodoLower === 'pix') valPix = totalGeral;
       else if (metodoLower === 'cartão' || metodoLower === 'cartao') valCartao = totalGeral;
@@ -283,7 +292,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
                   {prod.unidade === 'kg' ? '/kg' : ''}
                 </span>
                 <small className="estoque-indicador">
-                  {prod.qtd <= 0 ? "ESGOTADO" : `Estoque: ${prod.qtd} un`}
+                  {prod.qtd <= 0 ? "ESGOTADO" : `Estoque: ${prod.qtd} ${prod.unidade === 'kg' ? 'kg' : 'un'}`}
                 </small>
               </button>
             ))}

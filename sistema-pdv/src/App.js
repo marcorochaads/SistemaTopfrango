@@ -142,26 +142,6 @@ function App() {
                   <div className="menu-icone">{item.icone}</div>
                 </div>
               ))}
-
-              {/* BOTÃO DE TESTE SENTRY REINSERIDO ABAIXO */}
-              <button 
-                onClick={() => { throw new Error("Erro de Teste Sentry disparado manualmente!"); }}
-                style={{
-                  marginTop: '30px',
-                  backgroundColor: 'transparent',
-                  color: '#ff4d4d',
-                  border: '1px solid #ff4d4d',
-                  padding: '8px',
-                  borderRadius: '4px',
-                  cursor: 'pointer',
-                  fontSize: '0.7rem',
-                  width: '80%',
-                  alignSelf: 'center',
-                  opacity: 0.6
-                }}
-              >
-                🛠️ Testar Sentry
-              </button>
             </div>
           </nav>
 

@@ -35,14 +35,16 @@
   padding: 30px;
   display: flex;
   flex-direction: column;
-  gap: 25px;
+  gap: 20px; /* ALINHAMENTO: gap principal igualado para 20px */
   overflow-y: auto;
 }
 
-/* Grid de Cards Superiores */
+/* =========================================
+   CORREÇÃO DO GRID SUPERIOR
+   ========================================= */
 .grid-resumo {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  grid-template-columns: repeat(3, 1fr); /* Força 3 colunas exatas */
   gap: 20px;
 }
 
@@ -69,14 +71,26 @@
 .resumo-texto span { color: #888; font-size: 0.9rem; font-weight: bold; }
 .resumo-texto h3 { margin: 0; font-size: 1.5rem; color: #333; }
 
-/* Conteúdo Inferior */
+/* =========================================
+   CORREÇÃO DO CONTEÚDO INFERIOR
+   ========================================= */
 .conteudo-inferior {
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 25px;
+  grid-template-columns: repeat(3, 1fr); /* Mesma base exata de 3 colunas de cima */
+  gap: 20px; /* Mesmo gap de cima para encaixe perfeito */
 }
 
-.card-grafico, .card-detalhes {
+.card-grafico {
+  grid-column: span 2; /* Gráfico ocupa exatamente 2 colunas */
+  background: white;
+  padding: 25px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+  min-width: 0; /* Segurança extra: impede o SVG do Recharts de estourar a div */
+}
+
+.card-detalhes {
+  grid-column: span 1; /* Detalhes ocupa exatamente 1 coluna */
   background: white;
   padding: 25px;
   border-radius: 12px;
@@ -143,8 +157,6 @@
   margin-top: 15px;
   font-style: italic;
 }
-
-/* --- NOVOS ESTILOS ADICIONADOS --- */
 
 /* Controles de Filtro no Topo */
 .controles-filtro {
@@ -248,4 +260,21 @@
   padding: 30px;
   color: #888;
   font-style: italic;
-} 
+}
+
+/* =========================================
+   RESPONSIVIDADE (Protege contra quebra do grid em telas menores)
+   ========================================= */
+@media (max-width: 1024px) {
+  .grid-resumo {
+    grid-template-columns: 1fr;
+  }
+  
+  .conteudo-inferior {
+    grid-template-columns: 1fr;
+  }
+  
+  .card-grafico {
+    grid-column: span 1;
+  }
+}
