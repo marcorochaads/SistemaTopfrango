@@ -2,9 +2,16 @@
   "name": "servidor",
   "version": "1.0.0",
   "main": "Server.js",
+  "bin": "Server.js",
   "scripts": {
     "test": "jest --forceExit",
-    "start": "node server.js"
+    "start": "node Server.js",
+    "compilar": "pkg . --targets node18-win-x64 --output topfrango.exe"
+  },
+  "pkg": {
+    "assets": [
+      "build/**/*"
+    ]
   },
   "keywords": [],
   "author": "",

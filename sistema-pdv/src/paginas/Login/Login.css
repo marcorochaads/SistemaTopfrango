@@ -107,7 +107,7 @@
   outline: none;
 }
 
-/* --- BOTÃO --- */
+/* --- BOTÕES --- */
 .botao-entrar {
   width: 100%;
   padding: 14px;
@@ -132,4 +132,42 @@
 
 .botao-entrar:active {
   transform: translateY(0);
+}
+
+.login-acoes-extras {
+  margin-top: 15px;
+  text-align: center;
+}
+
+/* Botão de Fechar Sistema com as mesmas dimensões do Entrar */
+.btn-fechar-app {
+  width: 100%;
+  padding: 14px;
+  background: transparent;
+  border: 1.5px solid var(--vermelho-primario); /* Borda um pouco mais espessa para igualar ao outro */
+  color: var(--vermelho-primario);
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.btn-fechar-app:hover {
+  background-color: var(--vermelho-primario);
+  color: #ffffff;
+  transform: translateY(-2px);
+  box-shadow: 0 5px 15px rgba(211, 47, 47, 0.2);
+}
+
+.btn-fechar-app:active {
+  transform: translateY(0);
+}
+
+.nota-seguranca {
+  margin-top: 20px;
+  font-size: 0.8rem;
+  color: #666;
 }

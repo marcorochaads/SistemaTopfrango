@@ -1,11 +1,17 @@
-require("./instrument.js");
+const path = require('path');
+const fs = require('fs');
+const { exec } = require('child_process');
+
+// 1. Tenta carregar o instrument.js da pasta real onde o .exe está (process.cwd())
+const instrumentPath = path.join(process.cwd(), 'instrument.js');
+if (fs.existsSync(instrumentPath)) {
+    require(instrumentPath);
+}
 const Sentry = require("@sentry/node");
 const express = require('express');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
 const cron = require('node-cron');
 
 const app = express();
@@ -13,7 +19,9 @@ app.use(express.json());
 app.use(cors());
 
 let db;
-const DB_NAME = './topfrango.db';
+
+// Garante que o banco seja criado na pasta real do Windows onde o .exe está sendo executado
+const DB_NAME = path.join(process.cwd(), 'topfrango.db');
 
 const obterCaminhoDrive = () => {
     const letras = ['G', 'H', 'I', 'D', 'E', 'F'];
@@ -24,7 +32,7 @@ const obterCaminhoDrive = () => {
         }
     }
     // Plano B: se o Google Drive não estiver rodando no PC, salva na mesma pasta do .exe
-    return path.join(__dirname, 'Backups_Emergencia');
+   return path.join(process.cwd(), 'Backups_Emergencia');
 };
 
 const BACKUP_DIR = obterCaminhoDrive();
@@ -63,7 +71,7 @@ const limparBackupsAntigos = () => {
         // Filtra só os arquivos de backup para não apagar nada errado
         const backups = arquivos.filter(f => f.startsWith('backup-topfrango'));
         
-        // Mantém apenas os 10 últimos backups (ideal para o turno da manhã)
+        // Mantém apenas os 10 últimos backups
         if (backups.length > 10) {
             const arquivosOrdenados = backups.sort(); 
             const quantosApagar = backups.length - 10;
@@ -184,6 +192,13 @@ const limparBackupsAntigos = () => {
     if (!nomesColunasVendas.includes('dinheiro')) await db.exec("ALTER TABLE vendas ADD COLUMN dinheiro REAL DEFAULT 0;");
     if (!nomesColunasVendas.includes('pix')) await db.exec("ALTER TABLE vendas ADD COLUMN pix REAL DEFAULT 0;");
     if (!nomesColunasVendas.includes('cartao')) await db.exec("ALTER TABLE vendas ADD COLUMN cartao REAL DEFAULT 0;");
+
+    // --- VERIFICAÇÃO PARA ATUALIZAR A TABELA DE PRODUTOS COM O LOTE ---
+    const colunasProdutos = await db.all("PRAGMA table_info(produtos)");
+    const nomesColunasProdutos = colunasProdutos.map(c => c.name);
+    if (!nomesColunasProdutos.includes('isLote')) {
+        await db.exec("ALTER TABLE produtos ADD COLUMN isLote INTEGER DEFAULT 0;");
+    }
 
     const qtdUsuarios = await db.get('SELECT COUNT(*) as count FROM usuarios');
     if (qtdUsuarios.count === 0) {
@@ -307,6 +322,30 @@ app.get('/api/vendas', async (req, res) => {
     }
 });
 
+// ==========================================
+// ROTA TDD - SIMULAR DESCONTO (Totalmente Separada!)
+// ==========================================
+app.post('/api/vendas/simular-desconto', (req, res) => {
+    const { precoVenda, precoCusto, percentualDesconto } = req.body;
+    
+    // Se o desconto for negativo, retorna erro 400
+    if (percentualDesconto < 0) {
+        return res.status(400).json({ error: 'Percentual inválido.' });
+    }
+
+    // Calcula de quanto é o desconto e qual o valor final
+    const valorDesconto = precoVenda * (percentualDesconto / 100);
+    const precoFinal = precoVenda - valorDesconto;
+
+    // Se o preço final ficar abaixo do custo de compra, trava a operação (Evita Prejuízo!)
+    if (precoFinal < precoCusto) {
+        return res.status(400).json({ error: 'Desconto não permitido: O valor final geraria prejuízo.' });
+    }
+
+    // Retorna o preço final arredondado para 2 casas decimais (Fase Refactor já aplicada!)
+    res.json({ precoFinal: Number(precoFinal.toFixed(2)) });
+});
+
 app.put('/api/vendas/:id', async (req, res) => {
     const { status, pagamento, dinheiro, pix, cartao, endereco, telefone, lat, lng } = req.body;
     const { id } = req.params;
@@ -400,22 +439,30 @@ app.get('/api/produtos', async (req, res) => {
 });
 
 app.post('/api/produtos', async (req, res) => {
-    const { nome, qtd, vCompra, vVenda, vKG, unidade } = req.body;
+    const { nome, qtd, vCompra, vVenda, vKG, unidade, isLote } = req.body;
+    
+    // Converte o true/false do React para 1/0 do SQLite
+    const loteNum = isLote ? 1 : 0; 
+
     try {
         await db.run(
-            'INSERT INTO produtos (nome, qtd, vCompra, vVenda, vKG, unidade) VALUES (?, ?, ?, ?, ?, ?)',
-            [nome, qtd, vCompra, vVenda, vKG, unidade]
+            'INSERT INTO produtos (nome, qtd, vCompra, vVenda, vKG, unidade, isLote) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [nome, qtd, vCompra, vVenda, vKG, unidade, loteNum]
         );
         res.status(201).json({ message: "Produto cadastrado!" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/produtos/:id', async (req, res) => {
-    const { nome, qtd, vCompra, vVenda, vKG, unidade } = req.body;
+    const { nome, qtd, vCompra, vVenda, vKG, unidade, isLote } = req.body;
+    
+    // Converte o true/false do React para 1/0 do SQLite
+    const loteNum = isLote ? 1 : 0;
+
     try {
         await db.run(
-            'UPDATE produtos SET nome = ?, qtd = ?, vCompra = ?, vVenda = ?, vKG = ?, unidade = ? WHERE id = ?',
-            [nome, qtd, vCompra, vVenda, vKG, unidade, req.params.id]
+            'UPDATE produtos SET nome = ?, qtd = ?, vCompra = ?, vVenda = ?, vKG = ?, unidade = ?, isLote = ? WHERE id = ?',
+            [nome, qtd, vCompra, vVenda, vKG, unidade, loteNum, req.params.id]
         );
         res.json({ message: "Produto atualizado!" });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -558,6 +605,18 @@ app.delete('/api/usuarios/:id', async (req, res) => {
     }
 });
 
+
+app.use(express.static(path.join(__dirname, 'build')));
+
+// Qualquer rota que não seja /api/... vai abrir o sistema (React)
+app.use((req, res, next) => {
+    // Se não for uma rota de API (que começa com /api), manda o index.html
+    if (!req.url.startsWith('/api')) {
+        return res.sendFile(path.join(__dirname, 'build', 'index.html'));
+    }
+    next();
+});
+
 // ==========================================
 // TESTE DE OBSERVABILIDADE - SENTRY
 // ==========================================
@@ -570,5 +629,7 @@ Sentry.setupExpressErrorHandler(app);
 // ==========================================
 if (require.main === module) {
     app.listen(5000, () => console.log("🚀 Servidor TopFrango Normalizado rodando na porta 5000"));
+
+    exec('start http://localhost:5000');
 }
 module.exports = app;

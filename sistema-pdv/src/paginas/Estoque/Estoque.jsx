@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Estoque.css';
-import { FaBoxes, FaPlus, FaTrash, FaTag, FaBalanceScale, FaPen } from 'react-icons/fa';
+import { FaBoxes, FaPlus, FaTrash, FaTag, FaPen } from 'react-icons/fa';
 import { FaBrazilianRealSign } from 'react-icons/fa6';
 
 const Estoque = () => {
@@ -84,15 +84,37 @@ const Estoque = () => {
       return;
     }
 
-    if (!isKG && numVenda < numCompra && !isCompraLote) {
-      alert(`Erro: Prejuízo detectado! O preço de venda não pode ser inferior ao preço de compra.`);
-      return;
+    // --- INÍCIO DA VALIDAÇÃO INTELIGENTE DE PREJUÍZO ---
+    if (!isKG) {
+      if (isCompraLote) {
+        const faturamentoTotalLote = numQtd * numVenda;
+        if (faturamentoTotalLote < numCompra) {
+          alert(`Erro: Prejuízo detectado! O lote custou R$ ${numCompra.toFixed(2)}, mas a venda de todas as ${numQtd} unidades renderá apenas R$ ${faturamentoTotalLote.toFixed(2)}.`);
+          return;
+        }
+      } else if (numVenda < numCompra) {
+        alert("Erro: Prejuízo detectado! O preço de venda da unidade não pode ser menor que o custo de compra.");
+        return;
+      }
+    } 
+    else {
+      if (isCompraLote) {
+        const faturamentoTotalPeso = numQtd * numKG;
+        if (faturamentoTotalPeso < numCompra) {
+          alert(`Erro: Prejuízo detectado! O lote custou R$ ${numCompra.toFixed(2)}, mas a venda dos ${numQtd}kg renderá apenas R$ ${faturamentoTotalPeso.toFixed(2)}.`);
+          return;
+        }
+      } else if (numKG < numCompra) {
+        alert("Erro: Prejuízo detectado! O preço de venda do KG não pode ser menor que o custo de compra do KG.");
+        return;
+      }
     }
+    // --- FIM DA VALIDAÇÃO DE PREJUÍZO ---
 
     const novoProduto = {
       nome,
       qtd: numQtd,
-      vCompra: numCompra,
+      vCompra: isCompraLote ? (numCompra / numQtd) : numCompra,
       vVenda: isKG ? 0 : numVenda,
       vKG: isKG ? numKG : 0,
       unidade: isKG ? 'kg' : 'un',
@@ -153,10 +175,36 @@ const Estoque = () => {
       return;
     }
 
+    // Trava para não deixar o preço zerado na edição
+    if (prodEdit.unidade === 'kg' && numKG <= 0) {
+      alert("Erro: O valor do KG deve ser maior que zero!");
+      return;
+    }
+    if (prodEdit.unidade === 'un' && numVenda <= 0) {
+      alert("Erro: O preço de venda unitário deve ser maior que zero!");
+      return;
+    }
+
+    // --- INÍCIO DA VALIDAÇÃO INTELIGENTE DE PREJUÍZO (EDIÇÃO CORRIGIDA) ---
+    // Na edição, 'numCompra' já é o custo unitário (rateado) que veio do banco.
+    if (prodEdit.unidade === 'un') {
+      if (numVenda < numCompra) {
+        alert("Erro: Prejuízo detectado! O preço de venda da unidade não pode ser menor que o custo de compra unitário.");
+        return;
+      }
+    } 
+    else if (prodEdit.unidade === 'kg') {
+      if (numKG < numCompra) {
+        alert("Erro: Prejuízo detectado! O preço de venda do KG não pode ser menor que o custo de compra do KG.");
+        return;
+      }
+    }
+    // --- FIM DA VALIDAÇÃO DE PREJUÍZO ---
+
     const produtoAtualizado = {
       ...prodEdit,
       qtd: numQtd,
-      vCompra: numCompra,
+      vCompra: numCompra, // Aqui o valor rateado é salvo sem ser dividido novamente
       vVenda: prodEdit.unidade === 'un' ? numVenda : 0,
       vKG: prodEdit.unidade === 'kg' ? numKG : 0
     };
@@ -202,7 +250,6 @@ const Estoque = () => {
         <section className="card-formulario">
           <h2>Novo Produto / Cadastro de Lote</h2>
           
-          {/* Adicionado estilo grid diretamente para forçar alinhamento */}
           <div className="grid-form" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'end', marginBottom: '20px' }}>
             
             <div className="campo-form nome-prod" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -210,7 +257,6 @@ const Estoque = () => {
               <input type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Frango Inteiro" style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
             </div>
 
-            {/* Container flex para centralizar o toggle com os inputs de texto */}
             <div className="campo-form checkbox-kg" style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '42px' }}>
               <label className="switch" style={{ margin: 0 }}>
                 <input type="checkbox" checked={isCompraLote} onChange={e => setIsCompraLote(e.target.checked)} />
@@ -286,6 +332,7 @@ const Estoque = () => {
               <thead>
                 <tr>
                   <th>Nome</th>
+                  <th style={{ textAlign: 'center' }}>Lote?</th> 
                   <th>Em Estoque</th>
                   <th>Preço Venda</th>
                   <th style={{textAlign: 'center'}}>Ações</th>
@@ -295,6 +342,25 @@ const Estoque = () => {
                 {produtos.map(prod => (
                   <tr key={prod.id}>
                     <td><strong>{prod.nome}</strong></td>
+                    
+                    <td style={{ textAlign: 'center' }}>
+                      {prod.isLote ? (
+                        <span style={{
+                          backgroundColor: '#4CAF50',
+                          color: '#fff',
+                          padding: '4px 10px',
+                          borderRadius: '12px',
+                          fontSize: '0.8em',
+                          fontWeight: 'bold',
+                          letterSpacing: '0.5px'
+                        }}>
+                          SIM
+                        </span>
+                      ) : (
+                        <span style={{ color: '#999', fontWeight: 'bold' }}>NÃO</span>
+                      )}
+                    </td>
+
                     <td style={{ color: prod.qtd <= 5 ? '#D32F2F' : 'inherit', fontWeight: 'bold' }}>
                       {prod.unidade === 'kg' ? `${formatarPeso(prod.qtd)}(KG)` : `${prod.qtd}(UN)`}
                     </td>
@@ -323,7 +389,16 @@ const Estoque = () => {
       {modalEdicao && prodEdit && (
         <div className="modal-overlay">
           <div className="modal-edicao">
-            <h2>Editar: {prodEdit.nome}</h2>
+            
+           <h2>
+              Editar: {prodEdit.nome} 
+              {prodEdit.isLote ? (
+                <span style={{ fontSize: '0.6em', color: '#4CAF50', marginLeft: '10px', verticalAlign: 'middle', border: '1px solid #4CAF50', padding: '2px 6px', borderRadius: '8px' }}>
+                  LOTE
+                </span>
+              ) : null}
+            </h2>
+
             <div className="grid-form modal-grid">
               <div className="campo-form">
                 <label>Nome do Produto:</label>

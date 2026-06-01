@@ -33,6 +33,18 @@ const Login = ({ aoLogar }) => {
     }
   };
 
+  // NOVA FUNÇÃO: Fechar o sistema
+  const handleFecharSistema = () => {
+    const encerrar = window.confirm("Deseja realmente fechar o sistema TopFrangos?");
+    if (encerrar) {
+      // Tenta fechar a janela do navegador nativamente
+      window.close();
+      
+      // Fallback: caso o navegador bloqueie o window.close(), ele limpa a tela para branco
+      window.location.href = "about:blank";
+    }
+  };
+
   return (
     <div className="container-login">
       <div className="cartao-login">
@@ -76,6 +88,13 @@ const Login = ({ aoLogar }) => {
           </button>
         </form>
         
+        {/* NOVO BOTÃO DE FECHAR SISTEMA */}
+        <div className="login-acoes-extras">
+          <button type="button" className="btn-fechar-app" onClick={handleFecharSistema}>
+            Fechar Sistema
+          </button>
+        </div>
+
         <p className="nota-seguranca">Acesso restrito a funcionários autorizados</p>
       </div>
     </div>

@@ -22,11 +22,24 @@ const PDV = ({
 
   const [estatisticas, setEstatisticas] = useState({
     vendasHoje: 0,
-    faturamentoMes: 0, // ALTERADO para Mês
-    lucroMes: 0,       // ALTERADO para Mês
+    faturamentoMes: 0, 
+    lucroMes: 0,      
     crescimento: 0,
     produtosTop: []
   });
+
+  const handleConfirmarSair = () => {
+    const confirmou = window.confirm("Deseja realmente sair do sistema e encerrar a sessão?");
+    if (confirmou) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('usuario');
+      sessionStorage.clear();
+      
+      if (typeof onSair === 'function') {
+        onSair();
+      }
+    }
+  };
 
   useEffect(() => {
     const buscarDadosDashboard = async () => {
@@ -40,13 +53,17 @@ const PDV = ({
         const produtos = await resProdutos.json();
 
         const mapaUnidades = {};
-        const mapaCustos = {}; 
+        const mapaInfoProdutos = {}; 
 
         if (produtos && produtos.length > 0) {
           produtos.forEach(p => {
             mapaUnidades[p.nome] = p.unidade ? p.unidade.toLowerCase() : 'un';
-            // Pega o custo do produto (adapte p.vCusto ou p.custo de acordo com o seu backend)
-            mapaCustos[p.nome] = parseFloat(p.vCompra || 0);
+            
+            // NOVO: Agora salvamos se o produto é lote e qual o valor de compra
+            mapaInfoProdutos[p.nome] = {
+              vCompra: parseFloat(p.vCompra || 0),
+              isLote: p.isLote === 1 || p.isLote === true
+            };
           });
         }
 
@@ -56,7 +73,7 @@ const PDV = ({
         const anoAtual = new Date().getFullYear();
 
         let countVendasHoje = 0;
-        let custoMesAtual = 0; // Acumulador de custo do MÊS
+        let custoMesAtual = 0; 
         let faturamentoMesAtual = 0;
         let faturamentoMesAnterior = 0;
         const contagemProdutos = {};
@@ -74,29 +91,38 @@ const PDV = ({
           
           const ehFiado = formaPagamento.includes('fiado') || formaPagamento.includes('prazo') || statusVenda === 'pendente';
 
-          // Contagem de vendas de hoje (independente se é fiado ou não, para saber o movimento)
           if (dataVendaStr === dataHojeStr && statusVenda !== 'cancelado') {
             countVendasHoje++; 
           }
 
-          // Cálculos Financeiros (Apenas Vendas Pagas e Não Canceladas)
           if (statusVenda !== 'cancelado' && !ehFiado) {
             
-            // Lógica do MÊS ATUAL
             if (anoVenda === anoAtual && mesVenda === mesAtual) {
               faturamentoMesAtual += venda.total;
 
-              // Calcula o custo dos itens vendidos no MÊS para achar o lucro
               if (venda.itens && venda.itens.length > 0) {
                 venda.itens.forEach(item => {
                   const nomeProduto = item.produto_nome || 'Produto Desconhecido';
-                  const custoUn = mapaCustos[nomeProduto] || 0;
-                  custoMesAtual += (item.quantidade * custoUn);
+                  const infoProd = mapaInfoProdutos[nomeProduto] || { vCompra: 0, isLote: false };
+                  
+                  let custoDesteItem = 0;
+
+                  // CORREÇÃO DO CÁLCULO DE LOTE
+                  if (infoProd.isLote) {
+                    // Se for Lote, assumimos que o vCompra cadastrado é o custo UNITÁRIO do lote.
+                    // ATENÇÃO: Se você cadastrou o valor TOTAL do lote no vCompra, o lucro vai distorcer.
+                    // Cadastre sempre o custo de 1 unidade/kg no campo vCompra.
+                    custoDesteItem = item.quantidade * infoProd.vCompra;
+                  } else {
+                    // Produto normal
+                    custoDesteItem = item.quantidade * infoProd.vCompra;
+                  }
+
+                  custoMesAtual += custoDesteItem;
                 });
               }
             }
 
-            // Lógica do MÊS ANTERIOR (para o cálculo de crescimento)
             if (
               (anoVenda === anoAtual && mesVenda === mesAtual - 1) || 
               (mesAtual === 1 && mesVenda === 12 && anoVenda === anoAtual - 1)
@@ -105,7 +131,6 @@ const PDV = ({
             }
           }
 
-          // Contagem de Produtos Top do Mês
           if (anoVenda === anoAtual && mesVenda === mesAtual && statusVenda !== 'cancelado') {
             if (venda.itens && venda.itens.length > 0) {
               venda.itens.forEach(item => {
@@ -139,14 +164,13 @@ const PDV = ({
           crescimentoCalculado = 0; 
         }
 
-        // Subtrai o custo mensal do faturamento mensal para obter o lucro do mês
         const lucroMesCalculado = faturamentoMesAtual - custoMesAtual;
 
         setEstatisticas({
           vendasHoje: countVendasHoje,
           faturamentoMes: faturamentoMesAtual,
           lucroMes: lucroMesCalculado,
-          crescimento: crescimentoCalculado,
+          crescimento: crescimentoCalculado, 
           produtosTop: produtosTopArray
         });
 
@@ -208,7 +232,7 @@ const PDV = ({
             </>
           )}
 
-          <button className="btn-menu btn-sair" onClick={onSair}>
+          <button className="btn-menu btn-sair" onClick={handleConfirmarSair}>
             <span>Sair</span>
             <FaSignOutAlt size={20} />
           </button>
@@ -230,7 +254,6 @@ const PDV = ({
           </header>
 
           <div className="cards-resumo">
-            {/* Vendas Hoje - Mantido para visão de movimento diário */}
             <div className="card-estatistica">
               <div className="card-icone"><FaShoppingCart /></div>
               <div className="card-info">
@@ -239,7 +262,6 @@ const PDV = ({
               </div>
             </div>
 
-            {/* Faturamento do Mês */}
             <div className="card-estatistica">
               <div className="card-icone verde"><FaDollarSign /></div>
               <div className="card-info">
@@ -250,7 +272,6 @@ const PDV = ({
               </div>
             </div>
 
-            {/* Crescimento do Mês */}
             <div className="card-estatistica">
               <div className="card-icone azul" style={{ backgroundColor: estatisticas.crescimento >= 0 ? 'rgba(2, 119, 189, 0.1)' : 'rgba(211, 47, 47, 0.1)', color: estatisticas.crescimento >= 0 ? '#0277bd' : '#D32F2F' }}>
                 {estatisticas.crescimento >= 0 ? <FaArrowUp /> : <FaArrowDown />}
@@ -265,7 +286,6 @@ const PDV = ({
               </div>
             </div>
 
-            {/* Lucro do Mês - Exclusivo Admin */}
             {isAdmin && (
               <div className="card-estatistica">
                 <div className="card-icone" style={{ backgroundColor: 'rgba(76, 175, 80, 0.1)', color: '#388E3C' }}>

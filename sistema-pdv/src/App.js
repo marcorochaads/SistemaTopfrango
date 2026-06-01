@@ -6,7 +6,7 @@ import * as Sentry from "@sentry/react";
 
 import { 
   FaChartLine, FaClipboardList, FaDollarSign, 
-  FaMapMarkerAlt, FaDesktop, FaBoxes, FaUserPlus, FaBars, FaTimes 
+  FaMapMarkerAlt, FaDesktop, FaBoxes, FaUserPlus, FaBars, FaTimes, FaSignOutAlt 
 } from 'react-icons/fa';
 
 import Login from './paginas/Login/Login';
@@ -53,6 +53,27 @@ function App() {
     setTelaAtual('menu');
   };
 
+  // FUNÇÃO DE LOGOUT CENTRALIZADA NO APP.JS
+  const efetuarLogout = () => {
+    // Limpa os estados do React voltando ao estado inicial de segurança
+    setUsuarioLogado(null);
+    setTelaAtual('login');
+    setMenuAberto(false);
+    
+    // Limpa dados de sessões antigas persistidas no navegador
+    localStorage.removeItem('token');
+    localStorage.removeItem('usuario');
+    sessionStorage.clear();
+  };
+
+  // Função disparada no clique do botão Sair com confirmação
+  const handleBotaoSair = () => {
+    const confirmou = window.confirm("Deseja realmente encerrar a sessão e sair do sistema?");
+    if (confirmou) {
+      efetuarLogout();
+    }
+  };
+
   const itensMenu = [
     { id: 'menu', titulo: 'Início', icone: <FaDesktop size={20} /> }, 
     { id: 'vendas', titulo: 'Vender', subtitulo: 'Novo Pedido', icone: <FaChartLine size={20} /> },
@@ -85,6 +106,7 @@ function App() {
         irParaResultados={() => setTelaAtual('resultados')}
         irParaRotas={() => setTelaAtual('rotas')}
         irParaUsuarios={() => setTelaAtual('usuarios')}
+        onSair={handleBotaoSair} // CORREÇÃO: Passando a prop onSair para a tela do PDV funcionar!
       />
     );
   } else if (telaAtual === 'vendas') {
@@ -142,6 +164,14 @@ function App() {
                   <div className="menu-icone">{item.icone}</div>
                 </div>
               ))}
+
+              {/* INCLUSÃO: Botão de Sair fixado no fim do Menu Lateral para o caso de o usuário estar em outra tela */}
+              <div className="menu-card btn-sair-menu-lateral" onClick={handleBotaoSair} style={{ marginTop: '20px', backgroundColor: 'rgba(211, 47, 47, 0.1)', color: '#D32F2F' }}>
+                <div className="menu-textos">
+                  <span className="menu-titulo" style={{ fontWeight: 'bold' }}>Sair</span>
+                </div>
+                <div className="menu-icone"><FaSignOutAlt size={20} /></div>
+              </div>
             </div>
           </nav>
 
