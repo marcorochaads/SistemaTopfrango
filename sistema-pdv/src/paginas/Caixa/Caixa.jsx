@@ -157,7 +157,7 @@ const Caixa = () => {
 
     const turnoJaFechado = batimentosHoje.some(b => b.turno === turno);
     if (turnoJaFechado) {
-      return alert(`Atenção: O ${turno} já foi fechado hoje! Escolha outro turno ou verifique o histórico.`);
+      return alert(`Atenção: O ${turno} já foi fechado hoje! Escolha outro turno ou olhe o histórico.`);
     }
     
     const dadosBatimento = {
