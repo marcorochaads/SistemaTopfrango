@@ -1,14 +1,14 @@
 {
   "files": {
     "main.css": "/static/css/main.d05798d4.css",
-    "main.js": "/static/js/main.dead0cdc.js",
+    "main.js": "/static/js/main.a9997d7c.js",
     "static/media/logo-topfrango.png": "/static/media/logo-topfrango.8c5319b92839c8f4f12e.png",
     "index.html": "/index.html",
     "main.d05798d4.css.map": "/static/css/main.d05798d4.css.map",
-    "main.dead0cdc.js.map": "/static/js/main.dead0cdc.js.map"
+    "main.a9997d7c.js.map": "/static/js/main.a9997d7c.js.map"
   },
   "entrypoints": [
     "static/css/main.d05798d4.css",
-    "static/js/main.dead0cdc.js"
+    "static/js/main.a9997d7c.js"
   ]
 }

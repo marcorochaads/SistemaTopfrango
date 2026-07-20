@@ -95,7 +95,7 @@ const Login = ({ aoLogar }) => {
           </button>
         </div>
 
-        <p className="nota-seguranca">Acesso restrito a funcionários autorizados</p>
+        <p className="nota-seguranca">Acesso somente para autorizados</p>
       </div>
     </div>
   );

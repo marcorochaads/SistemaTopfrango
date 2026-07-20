@@ -59,7 +59,6 @@ const PDV = ({
           produtos.forEach(p => {
             mapaUnidades[p.nome] = p.unidade ? p.unidade.toLowerCase() : 'un';
             
-            // NOVO: Agora salvamos se o produto é lote e qual o valor de compra
             mapaInfoProdutos[p.nome] = {
               vCompra: parseFloat(p.vCompra || 0),
               isLote: p.isLote === 1 || p.isLote === true
@@ -68,15 +67,22 @@ const PDV = ({
         }
 
         const dataHojeStr = new Date().toLocaleDateString('pt-BR');
-        
         const mesAtual = new Date().getMonth() + 1;
         const anoAtual = new Date().getFullYear();
 
         let countVendasHoje = 0;
         let custoMesAtual = 0; 
-        let faturamentoMesAtual = 0;
-        let faturamentoMesAnterior = 0;
+        let faturamentoBrutoMesAtual = 0;
+        let faturamentoLiquidoMesAtual = 0;
+        let faturamentoBrutoMesAnterior = 0;
         const contagemProdutos = {};
+
+        const converterValor = (v) => {
+          if (!v) return 0;
+          if (typeof v === 'number') return v;
+          const n = Number(String(v).replace(',', '.'));
+          return isNaN(n) ? 0 : n;
+        };
 
         vendas.forEach(venda => {
           const dataVendaStr = venda.data ? venda.data.split(/[, ]+/)[0].trim() : '';
@@ -86,89 +92,92 @@ const PDV = ({
           const mesVenda = parseInt(mesStr, 10);
           const anoVenda = parseInt(anoStr, 10);
 
-          const formaPagamento = venda.pagamento ? venda.pagamento.toLowerCase() : '';
-          const statusVenda = venda.status ? venda.status.toLowerCase() : '';
-          
-          const ehFiado = formaPagamento.includes('fiado') || formaPagamento.includes('prazo') || statusVenda === 'pendente';
+          const statusVenda = venda.status ? venda.status.toLowerCase().trim() : '';
 
           if (dataVendaStr === dataHojeStr && statusVenda !== 'cancelado') {
             countVendasHoje++; 
           }
 
-          if (statusVenda !== 'cancelado' && !ehFiado) {
+          if (statusVenda !== 'cancelado') {
             
+            const vPix = converterValor(venda.pix);
+            const vDinheiro = converterValor(venda.dinheiro);
+            const vFiado = converterValor(venda.fiado);
+            
+            // Lendo diretamente os valores calculados pelo backend
+            const vCartaoLiquido = converterValor(venda.cartao);
+            const vTaxasCartao = converterValor(venda.taxa_cartao);
+            const vCartaoBruto = vCartaoLiquido + vTaxasCartao;
+            
+            // Faturamento Bruto (O que o cliente pagou de fato)
+            let valorRecebidoBruto = vPix + vDinheiro + vCartaoBruto;
+            
+            // Faturamento Líquido (O que sobrou pra loja após descontar a maquininha)
+            let valorRecebidoLiquido = vPix + vDinheiro + vCartaoLiquido;
+
+            const somaDivisoes = vPix + vDinheiro + vCartaoLiquido + vFiado;
+            
+            // Fallback para vendas antigas (antes de implementarmos as taxas)
+            if (somaDivisoes === 0 && statusVenda === 'pago') {
+              valorRecebidoBruto = converterValor(venda.total);
+              valorRecebidoLiquido = valorRecebidoBruto;
+            }
+            
+            // Acumulando Valores e Custos do Mês Atual
             if (anoVenda === anoAtual && mesVenda === mesAtual) {
-              faturamentoMesAtual += venda.total;
+              faturamentoBrutoMesAtual += valorRecebidoBruto;
+              faturamentoLiquidoMesAtual += valorRecebidoLiquido;
 
               if (venda.itens && venda.itens.length > 0) {
                 venda.itens.forEach(item => {
                   const nomeProduto = item.produto_nome || 'Produto Desconhecido';
                   const infoProd = mapaInfoProdutos[nomeProduto] || { vCompra: 0, isLote: false };
                   
-                  let custoDesteItem = 0;
-
-                  // CORREÇÃO DO CÁLCULO DE LOTE
-                  if (infoProd.isLote) {
-                    // Se for Lote, assumimos que o vCompra cadastrado é o custo UNITÁRIO do lote.
-                    // ATENÇÃO: Se você cadastrou o valor TOTAL do lote no vCompra, o lucro vai distorcer.
-                    // Cadastre sempre o custo de 1 unidade/kg no campo vCompra.
-                    custoDesteItem = item.quantidade * infoProd.vCompra;
-                  } else {
-                    // Produto normal
-                    custoDesteItem = item.quantidade * infoProd.vCompra;
-                  }
-
+                  // O custo independe se é lote ou unidade, a base é a mesma
+                  const custoDesteItem = item.quantidade * infoProd.vCompra;
                   custoMesAtual += custoDesteItem;
+
+                  // Contagem para o Top Produtos
+                  if (!contagemProdutos[nomeProduto]) contagemProdutos[nomeProduto] = 0;
+                  contagemProdutos[nomeProduto] += item.quantidade;
                 });
               }
             }
 
+            // Acumulando Faturamento Bruto do Mês Anterior para taxa de crescimento
             if (
               (anoVenda === anoAtual && mesVenda === mesAtual - 1) || 
               (mesAtual === 1 && mesVenda === 12 && anoVenda === anoAtual - 1)
             ) {
-              faturamentoMesAnterior += venda.total;
-            }
-          }
-
-          if (anoVenda === anoAtual && mesVenda === mesAtual && statusVenda !== 'cancelado') {
-            if (venda.itens && venda.itens.length > 0) {
-              venda.itens.forEach(item => {
-                const nomeProduto = item.produto_nome || 'Produto Desconhecido';
-                if (!contagemProdutos[nomeProduto]) {
-                  contagemProdutos[nomeProduto] = 0;
-                }
-                contagemProdutos[nomeProduto] += item.quantidade;
-              });
+              faturamentoBrutoMesAnterior += valorRecebidoBruto;
             }
           }
         });
 
         const produtosTopArray = Object.keys(contagemProdutos)
           .map(nome => {
-            const unidade = mapaUnidades[nome] || 'un';
+            const unidad = mapaUnidades[nome] || 'un';
             return {
               id: nome,
               nome: nome,
               qtd: contagemProdutos[nome],
-              unidade: unidade
+              unidade: unidad
             };
           })
           .sort((a, b) => b.qtd - a.qtd) 
           .slice(0, 5); 
 
         let crescimentoCalculado = 0;
-        if (faturamentoMesAnterior > 0) {
-          crescimentoCalculado = ((faturamentoMesAtual - faturamentoMesAnterior) / faturamentoMesAnterior) * 100;
-        } else {
-          crescimentoCalculado = 0; 
+        if (faturamentoBrutoMesAnterior > 0) {
+          crescimentoCalculado = ((faturamentoBrutoMesAtual - faturamentoBrutoMesAnterior) / faturamentoBrutoMesAnterior) * 100;
         }
 
-        const lucroMesCalculado = faturamentoMesAtual - custoMesAtual;
+        // O Lucro Real agora é calculado a partir do Líquido do Cartão menos o Custo dos Produtos
+        const lucroMesCalculado = faturamentoLiquidoMesAtual - custoMesAtual;
 
         setEstatisticas({
           vendasHoje: countVendasHoje,
-          faturamentoMes: faturamentoMesAtual,
+          faturamentoMes: faturamentoBrutoMesAtual,
           lucroMes: lucroMesCalculado,
           crescimento: crescimentoCalculado, 
           produtosTop: produtosTopArray
@@ -265,7 +274,7 @@ const PDV = ({
             <div className="card-estatistica">
               <div className="card-icone verde"><FaDollarSign /></div>
               <div className="card-info">
-                <span>Faturamento (Mês)</span>
+                <span>Faturamento Real (Mês)</span>
                 <h3>
                   {estatisticas.faturamentoMes.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                 </h3>

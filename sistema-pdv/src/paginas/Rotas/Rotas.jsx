@@ -106,12 +106,21 @@ const Rotas = () => {
     return v;
   };
 
+  const converterValor = (v) => {
+    if (!v) return 0;
+    if (typeof v === 'number') return v;
+    const n = Number(String(v).replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  };
+
   const carregarPedidos = async () => {
     try {
       const response = await fetch('http://localhost:5000/api/vendas');
       const dados = await response.json();
-      setPedidosPendentes(dados.filter(p => p.status === 'Pendente'));
-      setPedidosEmRota(dados.filter(p => p.status === 'Em Rota'));
+      
+      // Blindagem contra variação de letras maiúsculas/minúsculas no banco
+      setPedidosPendentes(dados.filter(p => p.status && p.status.toLowerCase() === 'pendente'));
+      setPedidosEmRota(dados.filter(p => p.status && p.status.toLowerCase() === 'em rota'));
     } catch (error) {
       console.error("Erro ao buscar pedidos:", error);
     }
@@ -147,7 +156,6 @@ const Rotas = () => {
       return;
     }
     try {
-      
       const query = `${endereco} Madalena Ceará`;
       const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1`);
       const data = await res.json();
@@ -175,8 +183,8 @@ const Rotas = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
+          ...pedidoSelecionado, // <-- CORREÇÃO: Mantém nome, total e produtos
           status: 'Em Rota', 
-          pagamento: null,
           endereco: endereco || 'Destino via Mapa', 
           telefone: telefoneLimpo, 
           lat: destino[0],
@@ -198,35 +206,34 @@ const Rotas = () => {
     try {
       const telefoneLimpo = telefone.replace(/\D/g, '');
       
-      // 1. Descobrimos para qual coluna vai o dinheiro
       let valorDinheiro = 0;
       let valorPix = 0;
       let valorCartao = 0;
 
+      // Conversão segura dos valores
       if (metodoPagamento === 'Múltiplo' && detalhesExtras) {
-        // Se for dividido, pega os valores exatos que o Modal mandou
-        valorDinheiro = detalhesExtras.Dinheiro || 0;
-        valorPix = detalhesExtras.PIX || 0;
-        valorCartao = detalhesExtras.Cartao || 0;
+        valorDinheiro = converterValor(detalhesExtras.Dinheiro);
+        valorPix = converterValor(detalhesExtras.PIX);
+        valorCartao = converterValor(detalhesExtras.Cartao);
       } else if (metodoPagamento === 'Dinheiro') {
-        // Se foi tudo em dinheiro, pega o total do pedido
-        valorDinheiro = pedidoSelecionado.total;
+        valorDinheiro = converterValor(pedidoSelecionado.total);
       } else if (metodoPagamento === 'PIX') {
-        valorPix = pedidoSelecionado.total;
+        valorPix = converterValor(pedidoSelecionado.total);
       } else if (metodoPagamento === 'Cartão' || metodoPagamento === 'Cartao') {
-        valorCartao = pedidoSelecionado.total;
+        valorCartao = converterValor(pedidoSelecionado.total);
       }
 
-      // 2. Disparamos para o servidor com tudo preenchido
       const response = await fetch(`http://localhost:5000/api/vendas/${pedidoSelecionado.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
+          ...pedidoSelecionado, // <-- CORREÇÃO: Mantém nome, total e produtos
           status: 'Pago', 
           pagamento: metodoPagamento,
           dinheiro: valorDinheiro,
           pix: valorPix,
           cartao: valorCartao,
+          fiado: 0, 
           endereco: endereco,
           telefone: telefoneLimpo, 
           lat: destino[0],
@@ -256,7 +263,7 @@ const Rotas = () => {
   const MapEvents = () => {
     useMapEvents({
       click(e) { 
-        if(pedidoSelecionado && pedidoSelecionado.status === 'Pendente') {
+        if(pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'pendente') {
             setDestino([e.latlng.lat, e.latlng.lng]); 
         }
       },
@@ -286,7 +293,7 @@ const Rotas = () => {
               <select 
                 className="select-pedido"
                 onChange={(e) => handleSelectPedido(e.target.value, 'pendente')}
-                value={pedidoSelecionado && pedidoSelecionado.status === 'Pendente' ? pedidoSelecionado.id : ""}
+                value={pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'pendente' ? pedidoSelecionado.id : ""}
               >
                 <option value="" disabled>Escolha para traçar rota...</option>
                 {pedidosPendentes.map(p => (
@@ -302,7 +309,7 @@ const Rotas = () => {
               <select 
                 className="select-pedido"
                 onChange={(e) => handleSelectPedido(e.target.value, 'emRota')}
-                value={pedidoSelecionado && pedidoSelecionado.status === 'Em Rota' ? pedidoSelecionado.id : ""}
+                value={pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'em rota' ? pedidoSelecionado.id : ""}
               >
                 <option value="" disabled>Selecione para ver rota ou dar baixa...</option>
                 {pedidosEmRota.map(p => (
@@ -334,7 +341,6 @@ const Rotas = () => {
                   style={{ width: '100%', padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}
                 />
                 
-                {/* BOTÃO DO WHATSAPP CORRIGIDO (VERDE E EM DESTAQUE) */}
                 <a 
                   href={`https://wa.me/55${telefone.replace(/\D/g, '')}`} 
                   target="_blank" 
@@ -370,12 +376,12 @@ const Rotas = () => {
                   placeholder="Digite o endereço ou clique no mapa"
                   value={endereco}
                   onChange={(e) => setEndereco(e.target.value)}
-                  disabled={!pedidoSelecionado || pedidoSelecionado.status === 'Em Rota'}
+                  disabled={!pedidoSelecionado || (pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'em rota')}
                   style={{ flex: 1, padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}
                 />
                 <button 
                   onClick={buscarEnderecoNoMapa} 
-                  disabled={!pedidoSelecionado || pedidoSelecionado.status === 'Em Rota'}
+                  disabled={!pedidoSelecionado || (pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'em rota')}
                   className="btn-buscar-mapa"
                 >
                   <FaMagnifyingGlass /> 
@@ -390,11 +396,11 @@ const Rotas = () => {
 
             {pedidoSelecionado && (
               <div className="resumo-pedido-entrega">
-                <strong>Total:</strong> <span style={{ color: '#D32F2F' }}>R$ {pedidoSelecionado.total.toFixed(2)}</span>
+                <strong>Total:</strong> <span style={{ color: '#D32F2F' }}>R$ {pedidoSelecionado.total ? pedidoSelecionado.total.toFixed(2) : '0.00'}</span>
               </div>
             )}
 
-            {pedidoSelecionado && pedidoSelecionado.status === 'Pendente' ? (
+            {pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'pendente' ? (
                 <button 
                   className="btn-tracar-rota" 
                   disabled={!destino} 
@@ -403,7 +409,7 @@ const Rotas = () => {
                 >
                   <FaMotorcycle /> Despachar Entrega
                 </button>
-            ) : pedidoSelecionado && pedidoSelecionado.status === 'Em Rota' ? (
+            ) : pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'em rota' ? (
                 <button 
                   className="btn-tracar-rota" 
                   onClick={() => setIsModalOpen(true)} 
@@ -437,7 +443,7 @@ const Rotas = () => {
         <ModalPagamento 
           isOpen={isModalOpen} 
           onClose={() => setIsModalOpen(false)} 
-          valorTotal={pedidoSelecionado.total.toFixed(2)}
+          valorTotal={pedidoSelecionado.total ? pedidoSelecionado.total.toFixed(2) : '0.00'}
           onConfirm={finalizarBaixaRota}
           esconderPagarDepois={true}
         />
@@ -446,4 +452,4 @@ const Rotas = () => {
   );
 };
 
-export default Rotas; 
+export default Rotas;
