@@ -59,51 +59,81 @@ const Resultados = () => {
     return isNaN(numero) ? 0 : numero;
   };
 
-  // 1. Filtragem de vendas pagas
-  const vendasFiltradasCalculos = filtrarDados(vendas, true).filter(
-    v => v.status && v.status.toLowerCase().trim() === 'pago'
-  );
-  
+  // 1. Filtragem base
+  const vendasFiltradasBase = filtrarDados(vendas, true); 
   const sangriasFiltradas = filtrarDados(sangrias, false);
 
-  // 2. Cálculos Globais
-  const totalBruto = vendasFiltradasCalculos.reduce((acc, v) => acc + converterValor(v.total), 0);
+  // 2. Mapeamento e Cálculos Globais (Apenas lendo os dados prontos do banco)
+  const vendasCalculadas = vendasFiltradasBase.map(v => {
+    let calcPix = converterValor(v.pix);
+    let calcDinheiro = converterValor(v.dinheiro);
+    
+    
+    let calcCartaoLiquido = converterValor(v.cartao);
+    let calcTaxaCartao = converterValor(v.taxa_cartao);
+    let calcCartaoBruto = calcCartaoLiquido + calcTaxaCartao; 
+    const vTotalBruto = converterValor(v.total);
+
+    const somaDivisoes = calcPix + calcDinheiro + calcCartaoLiquido + converterValor(v.fiado);
+    const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
+    const status = v.status ? v.status.toLowerCase().trim() : '';
+
+    
+    if (somaDivisoes === 0 && status === 'pago') {
+      if (pag === 'pix') calcPix = vTotalBruto;
+      else if (pag === 'dinheiro') calcDinheiro = vTotalBruto;
+      else if (pag === 'cartão' || pag === 'cartao') {
+        calcCartaoBruto = vTotalBruto;
+        calcCartaoLiquido = vTotalBruto;
+        calcTaxaCartao = 0;
+      }
+    }
+
+    // Total Real da Venda = Pix + Dinheiro + Cartão já subtraído a taxa
+    const vTotalLiquido = calcPix + calcDinheiro + calcCartaoLiquido + converterValor(v.fiado);
+
+    return {
+      ...v,
+      calcPix,
+      calcDinheiro,
+      calcCartaoBruto,
+      calcCartaoLiquido,
+      calcTaxaCartao,
+      vTotalBruto,
+      vTotalLiquido
+    };
+  });
+
+  // 3. Agrupamento de Totais
+  const totalPix = vendasCalculadas.reduce((acc, v) => acc + v.calcPix, 0);
+  const totalDinheiro = vendasCalculadas.reduce((acc, v) => acc + v.calcDinheiro, 0);
+  const totalCartaoLiquido = vendasCalculadas.reduce((acc, v) => acc + v.calcCartaoLiquido, 0);
+  const totalTaxasDescontadas = vendasCalculadas.reduce((acc, v) => acc + v.calcTaxaCartao, 0);
+
+  const totalCartaoCreditoLiquido = vendasCalculadas.reduce((acc, v) => {
+    const mod = v.modalidade_cartao ? v.modalidade_cartao.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : '';
+    return acc + (mod === 'credito' ? v.calcCartaoLiquido : 0);
+  }, 0);
+
+  const totalCartaoDebitoLiquido = vendasCalculadas.reduce((acc, v) => {
+    const mod = v.modalidade_cartao ? v.modalidade_cartao.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : '';
+    return acc + (mod === 'debito' ? v.calcCartaoLiquido : 0);
+  }, 0);
+
+  // Faturamento Líquido Real (O dinheiro que de fato a loja faturou após taxas)
+  const faturamentoLiquidoReal = totalPix + totalCartaoLiquido + totalDinheiro;
+  
+  // Saldo em Caixa Físico (Apenas Dinheiro - Sangrias)
   const totalRetiradas = sangriasFiltradas.reduce((acc, s) => acc + converterValor(s.valor), 0);
-
-  // Separando as formas de pagamento
-  const totalPix = vendasFiltradasCalculos.reduce((acc, v) => {
-    let valor = converterValor(v.pix);
-    const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
-    if (valor === 0 && pag === 'pix') valor = converterValor(v.total);
-    return acc + valor;
-  }, 0);
-
-  const totalCartao = vendasFiltradasCalculos.reduce((acc, v) => {
-    let valor = converterValor(v.cartao);
-    const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
-    if (valor === 0 && (pag === 'cartão' || pag === 'cartao')) valor = converterValor(v.total);
-    return acc + valor;
-  }, 0);
-
-  const totalDinheiro = vendasFiltradasCalculos.reduce((acc, v) => {
-    let valor = converterValor(v.dinheiro);
-    const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
-    if (valor === 0 && pag === 'dinheiro') valor = converterValor(v.total);
-    return acc + valor;
-  }, 0);
-
-  // =========================================================================
-  // SALDO EM CAIXA (Espécie) = Apenas Dinheiro físico - Retiradas
-  // =========================================================================
-  const totalLiquido = totalDinheiro - totalRetiradas;
+  const saldoCaixaFisico = totalDinheiro - totalRetiradas;
 
   const dadosGrafico = [
     { name: 'Pix', valor: totalPix },
-    { name: 'Cartão', valor: totalCartao },
+    { name: 'Cartão (Líq.)', valor: totalCartaoLiquido },
     { name: 'Dinheiro', valor: totalDinheiro },
   ];
 
-  const eficiencia = totalBruto > 0 ? ((totalLiquido / totalBruto) * 100).toFixed(1) : 0;
+  const eficiencia = totalDinheiro > 0 ? ((saldoCaixaFisico / totalDinheiro) * 100).toFixed(1) : 0;
 
   const formatarMoeda = (valor) => {
     return converterValor(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -139,8 +169,8 @@ const Resultados = () => {
           <div className="card-resumo bruto">
             <div className="resumo-icon"><FaArrowTrendUp /></div>
             <div className="resumo-texto">
-              <span>Faturamento Bruto {filtro === 'dia' ? `(${dataBuscaBR})` : `(${mesBuscaBR})`}</span>
-              <h3>{formatarMoeda(totalBruto)}</h3>
+              <span>Faturamento Líquido {filtro === 'dia' ? `(${dataBuscaBR})` : `(${mesBuscaBR})`}</span>
+              <h3>{formatarMoeda(faturamentoLiquidoReal)}</h3>
             </div>
           </div>
 
@@ -155,8 +185,8 @@ const Resultados = () => {
           <div className="card-resumo liquido">
             <div className="resumo-icon"><FaWallet /></div>
             <div className="resumo-texto">
-              <span>Saldo em Caixa</span>
-              <h3>{formatarMoeda(totalLiquido)}</h3>
+              <span>Saldo em Caixa (Físico)</span>
+              <h3>{formatarMoeda(saldoCaixaFisico)}</h3>
             </div>
           </div>
         </section>
@@ -190,27 +220,46 @@ const Resultados = () => {
               <span>Total em Pix:</span>
               <strong>{formatarMoeda(totalPix)}</strong>
             </div>
-            <div className="linha-detalhe">
-              <span>Total em Cartão:</span>
-              <strong>{formatarMoeda(totalCartao)}</strong>
+            
+            <div className="linha-detalhe" style={{ alignItems: 'flex-start' }}>
+              <span>Total em Cartão (Líquido):</span>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                <strong>{formatarMoeda(totalCartaoLiquido)}</strong>
+                
+                {(totalCartaoCreditoLiquido > 0 || totalCartaoDebitoLiquido > 0) && (
+                  <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '4px', textAlign: 'right' }}>
+                    {totalCartaoCreditoLiquido > 0 && <div>Crédito: {formatarMoeda(totalCartaoCreditoLiquido)}</div>}
+                    {totalCartaoDebitoLiquido > 0 && <div>Débito: {formatarMoeda(totalCartaoDebitoLiquido)}</div>}
+                  </div>
+                )}
+              </div>
             </div>
+
             <div className="linha-detalhe">
               <span>Total em Dinheiro:</span>
               <strong>{formatarMoeda(totalDinheiro)}</strong>
             </div>
+            
+            {totalTaxasDescontadas > 0 && (
+              <div className="linha-detalhe" style={{ color: '#D32F2F', backgroundColor: 'rgba(211, 47, 47, 0.05)', padding: '4px 8px', borderRadius: '4px' }}>
+                <span>Taxas de Maquininha (Descontadas):</span>
+                <strong>- {formatarMoeda(totalTaxasDescontadas)}</strong>
+              </div>
+            )}
+
             <hr />
             <div className="linha-detalhe total">
               <span>Eficiência de Caixa:</span>
               <strong style={{color: eficiencia > 70 ? '#2E7D32' : '#D32F2F'}}>{eficiencia}%</strong>
             </div>
-            <p className="obs-relatorio">* Valores baseados nos recebimentos reais (inclui pagamentos mistos).</p>
+            <p className="obs-relatorio">* O Faturamento Líquido já representa o valor final com as taxas bancárias deduzidas.</p>
           </section>
         </div>
 
         <section className="card-lista-vendas">
           <h2><FaList /> Detalhamento das Movimentações</h2>
           <div className="tabela-vendas-container">
-            {filtrarDados(vendas, true).length > 0 ? (
+            {vendasCalculadas.length > 0 ? (
               <table className="tabela-vendas">
                 <thead>
                   <tr>
@@ -219,11 +268,11 @@ const Resultados = () => {
                     <th>Cliente</th>
                     <th>Itens</th>
                     <th>Meio</th>
-                    <th>Valor</th>
+                    <th>Valor Real P/ Loja</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filtrarDados(vendas, true).slice().reverse().map((venda) => (
+                  {vendasCalculadas.slice().reverse().map((venda) => (
                     <tr key={venda.id}>
                       <td>{venda.data?.split(',')[0]}</td>
                       <td style={{ color: (venda.status?.toLowerCase() === 'pago') ? '#2E7D32' : '#D32F2F', fontWeight: 'bold' }}>
@@ -236,11 +285,75 @@ const Resultados = () => {
                           : "Consulte o pedido"}
                       </td>
                       <td>
-                        <span className={`badge-pagamento ${venda.pagamento?.toLowerCase() || 'pendente'}`}>
-                          {venda.pagamento || 'A receber'}
-                        </span>
+                        {(() => {
+                          const somaDivisoesPagamento = venda.calcPix + venda.calcDinheiro + venda.calcCartaoBruto;
+                          const valorRestante = venda.vTotalBruto - somaDivisoesPagamento;
+                          const isPago = venda.status?.toLowerCase().trim() === 'pago';
+
+                          const badges = [];
+
+                          if (venda.calcPix > 0) badges.push(<span key="pix" className="badge-pagamento pix">Pix: {formatarMoeda(venda.calcPix)}</span>);
+                          if (venda.calcDinheiro > 0) badges.push(<span key="dinheiro" className="badge-pagamento dinheiro">Din: {formatarMoeda(venda.calcDinheiro)}</span>);
+                          
+                          // Exibindo o valor Líquido e a taxa descontada no pedido
+                          if (venda.calcCartaoBruto > 0) {
+                            const modalidade = venda.modalidade_cartao ? ` (${venda.modalidade_cartao})` : '';
+                            badges.push(
+                              <div key="cartao" style={{display: 'flex', flexDirection: 'column', gap: '2px'}}>
+                                <span className="badge-pagamento cartão">Cart Líquido{modalidade}: {formatarMoeda(venda.calcCartaoLiquido)}</span>
+                                {venda.calcTaxaCartao > 0 && (
+                                  <span style={{fontSize: '0.75rem', color: '#D32F2F', paddingLeft: '4px'}}>
+                                    (Taxa: -{formatarMoeda(venda.calcTaxaCartao)})
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          }
+
+                          if (valorRestante > 0.05) { 
+                            if (isPago) {
+                              const pagFinal = venda.pagamento || 'Quitado';
+                              const classeBadge = pagFinal.toLowerCase() === 'múltiplo' ? 'multiplo' : pagFinal.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                              
+                              let labelPagamento = pagFinal;
+                              badges.push(
+                                <span key="restante" className={`badge-pagamento ${classeBadge}`}>
+                                  {labelPagamento}: {formatarMoeda(valorRestante)}
+                                </span>
+                              );
+                            } else {
+                              badges.push(
+                                <span key="fiado" className="badge-pagamento pendente">
+                                  A Receber: {formatarMoeda(valorRestante)}
+                                </span>
+                              );
+                            }
+                          }
+
+                          if (badges.length > 0) {
+                            return (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', alignItems: 'flex-start' }}>
+                                {badges}
+                              </div>
+                            );
+                          }
+
+                          return (
+                            <span className={`badge-pagamento ${venda.pagamento?.toLowerCase() || 'pendente'}`}>
+                              {venda.pagamento || 'A receber'}
+                            </span>
+                          );
+                        })()}
                       </td>
-                      <td className="valor-td">{formatarMoeda(venda.total)}</td>
+                      {/* A tabela mostra o total final após as taxas */}
+                      <td className="valor-td" style={{ fontWeight: 'bold' }}>
+                        {formatarMoeda(venda.vTotalLiquido)}
+                        {venda.calcTaxaCartao > 0 && (
+                          <div style={{fontSize: '0.75rem', color: '#888', fontWeight: 'normal', textDecoration: 'line-through'}}>
+                            Bruto: {formatarMoeda(venda.vTotalBruto)}
+                          </div>
+                        )}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

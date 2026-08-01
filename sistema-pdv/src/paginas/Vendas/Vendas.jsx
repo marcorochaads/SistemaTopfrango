@@ -21,7 +21,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
   const { setErroConexao } = useContext(ConexaoContext);
   const dataAtual = new Date().toLocaleDateString('pt-BR');
 
-  // Formata os valores para exibição (R$ 0.000,00)
   const formatarValorBR = (valor) => {
     return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
@@ -74,7 +73,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
     const itemExistente = carrinho.find(item => item.id === prodEstoque.id);
     const qtdNoCarrinho = itemExistente ? parseFloat(itemExistente.qtd) || 0 : 0;
 
-    // LÓGICA DE ESTOQUE: Bloqueia se não tiver nada no estoque
     if (prodEstoque.qtd <= 0) {
       alert("Produto esgotado no estoque!");
       return;
@@ -95,7 +93,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       setCarrinho([...carrinho, { 
         id: prodEstoque.id, 
         nome: prodEstoque.nome, 
-        // LÓGICA DO LOTE: Usa o vKG se for peso, vVenda se for unidade
         preco: prodEstoque.unidade === 'kg' ? prodEstoque.vKG : prodEstoque.vVenda, 
         unidade: prodEstoque.unidade,
         qtd: prodEstoque.unidade === 'un' ? 1 : '' 
@@ -121,7 +118,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       return;
     }
     
-    // LÓGICA DO LOTE: Avisa se o atendente digitar um peso maior que o lote inteiro no estoque
     if (valor !== '' && parseFloat(valor) > prodOriginal.qtd) {
       alert(`Atenção: O peso digitado (${valor}kg) é maior que o estoque atual disponível (${prodOriginal.qtd}kg)`);
     }
@@ -151,30 +147,63 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
     let valDinheiro = 0;
     let valPix = 0;
     let valCartao = 0;
+    let valFiado = 0;
+    
+    
+    let modalidadeCartaoSalvar = null;
+    let parcelasCartaoSalvar = null;
 
     const metodoLower = metodoSelecionado ? String(metodoSelecionado).toLowerCase().trim() : '';
 
     if (metodoLower === 'múltiplo' || metodoLower === 'multiplo') {
       if (detalhesPagamento) {
-        valDinheiro = parseFloat(detalhesPagamento.Dinheiro) || 0;
-        valPix = parseFloat(detalhesPagamento.PIX) || 0;
-        valCartao = parseFloat(detalhesPagamento.Cartao) || 0;
+        valDinheiro = parseFloat(detalhesPagamento.Dinheiro || detalhesPagamento.dinheiro) || 0;
+        valPix = parseFloat(detalhesPagamento.PIX || detalhesPagamento.pix) || 0;
+        valCartao = parseFloat(detalhesPagamento.Cartao || detalhesPagamento.cartao) || 0;
+        valFiado = parseFloat(detalhesPagamento.Fiado || detalhesPagamento.fiado) || 0;
+
+        
+        if (detalhesPagamento.modalidade_cartao) modalidadeCartaoSalvar = detalhesPagamento.modalidade_cartao;
+        if (detalhesPagamento.parcelas_cartao) parcelasCartaoSalvar = detalhesPagamento.parcelas_cartao;
+
+        if (detalhesPagamento.telefone) {
+          telefoneSalvar = detalhesPagamento.telefone;
+        }
 
         const partes = [];
         if (valDinheiro > 0) partes.push(`Dinheiro: R$ ${formatarValorBR(valDinheiro)}`);
         if (valPix > 0) partes.push(`PIX: R$ ${formatarValorBR(valPix)}`);
         if (valCartao > 0) partes.push(`Cartão: R$ ${formatarValorBR(valCartao)}`);
+        if (valFiado > 0) partes.push(`Fiado: R$ ${formatarValorBR(valFiado)}`);
         
         descricaoPagamento = `Múltiplo (${partes.join(' | ')})`;
       }
     } else {
-      if (metodoLower === 'dinheiro') valDinheiro = totalGeral;
-      else if (metodoLower === 'pix') valPix = totalGeral;
-      else if (metodoLower === 'cartão' || metodoLower === 'cartao') valCartao = totalGeral;
+      if (metodoLower === 'dinheiro') valDinheiro = (detalhesPagamento && detalhesPagamento.dinheiro) ? detalhesPagamento.dinheiro : totalGeral;
+      else if (metodoLower === 'pix') valPix = (detalhesPagamento && detalhesPagamento.pix) ? detalhesPagamento.pix : totalGeral;
+      else if (metodoLower.includes('cartão') || metodoLower.includes('cartao')) {
+        valCartao = (detalhesPagamento && detalhesPagamento.cartao) ? detalhesPagamento.cartao : totalGeral;
+        
+        
+        if (detalhesPagamento) {
+          if (detalhesPagamento.modalidade_cartao) modalidadeCartaoSalvar = detalhesPagamento.modalidade_cartao;
+          if (detalhesPagamento.parcelas_cartao) parcelasCartaoSalvar = detalhesPagamento.parcelas_cartao;
+        }
+      }
+      else if (metodoLower === 'fiado' || metodoLower === 'pagar depois') valFiado = totalGeral; 
     }
 
-    if (metodoLower === 'pagar depois' && typeof detalhesPagamento === 'string') {
-      telefoneSalvar = detalhesPagamento;
+    if (valFiado > 0 && cliente.trim() === '') {
+        alert("Digite o nome do cliente no campo lateral para poder vender no Fiado!");
+        return;
+    }
+
+    if (metodoLower === 'pagar depois' || valFiado > 0) {
+      if (typeof detalhesPagamento === 'string') {
+        telefoneSalvar = detalhesPagamento;
+      } else if (detalhesPagamento && detalhesPagamento.telefone) {
+        telefoneSalvar = detalhesPagamento.telefone;
+      }
     }
 
     const itensNormalizados = carrinho.map(item => {
@@ -187,6 +216,8 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       };
     });
 
+    const statusDaVenda = isEntrega || metodoLower === 'pagar depois' || valFiado > 0 ? 'Pendente' : 'Pago';
+
     const dadosVenda = {
       cliente_nome: cliente,
       cliente_telefone: telefoneSalvar, 
@@ -196,7 +227,10 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       dinheiro: valDinheiro,
       pix: valPix,
       cartao: valCartao,
-      status: isEntrega ? 'Pendente' : (metodoLower === 'pagar depois' ? 'Pendente' : 'Pago'), 
+      modalidade_cartao: modalidadeCartaoSalvar, 
+      parcelas_cartao: parcelasCartaoSalvar,
+      fiado: valFiado,
+      status: statusDaVenda, 
       data: new Date().toLocaleString('pt-BR'),
       itensArray: itensNormalizados,
       tipo_venda: isEntrega ? 'Entrega' : 'Balcão',
@@ -265,8 +299,6 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
                 fontSize: '16px', display: 'flex', alignItems: 'center', gap: '8px',
                 boxShadow: '0 4px 6px rgba(0,0,0,0.1)', transition: 'background-color 0.2s'
               }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#b71c1c'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#d32f2f'}
             >
               Ir para o Caixa <FaArrowRight />
             </button>
@@ -305,10 +337,10 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
           <h3>Resumo do Pedido</h3>
         </div>
         <div className="form-cliente">
-          <label>Cliente (Opcional):</label>
+          <label>Cliente (Obrigatório p/ Fiado):</label>
           <input
             type="text"
-            placeholder="Nome para identificação na via..."
+            placeholder="Nome do cliente..."
             value={cliente}
             onChange={(e) => setCliente(e.target.value)}
           />

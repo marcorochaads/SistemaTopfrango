@@ -106,7 +106,7 @@ input:checked + .slider:before { transform: translateX(26px); }
 .btn-remover-prod { background: none; border: none; color: #999; cursor: pointer; transition: 0.2s; font-size: 1.1rem; }
 .btn-remover-prod:hover { color: #D32F2F; } 
 
-/* --- NOVOS ESTILOS PARA EDIÇÃO E MODAL --- */
+
 
 .acoes-td {
   display: flex;

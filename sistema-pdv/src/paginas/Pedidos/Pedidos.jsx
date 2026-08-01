@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import './Pedidos.css';
-import { FaCheckCircle, FaSearch, FaClock, FaUser, FaTimes, FaWhatsapp } from 'react-icons/fa';
+import { FaCheckCircle, FaSearch, FaClock, FaUser, FaTimes, FaWhatsapp, FaExclamationCircle } from 'react-icons/fa';
 import ModalPagamento from '../../componentes/ModalPagamento/ModalPagamento';
 import { ConexaoContext } from '../../App';
 
@@ -32,22 +32,59 @@ const Pedidos = () => {
     carregarPedidos();
   }, []);
 
+
+  const converterValor = (valor) => {
+    if (!valor) return 0;
+    if (typeof valor === 'number') return valor;
+    const numero = Number(String(valor).replace(',', '.'));
+    return isNaN(numero) ? 0 : numero;
+  };
+
   const finalizarBaixa = async (metodoPagamentoReal, dadosAdicionais = {}) => {
-    const agora = new Date().toLocaleString('pt-BR');
+    // 1. Pega o que JÁ ESTAVA PAGO no banco para não perder o histórico
+    const pixAntigo = converterValor(pedidoSelecionado.pix);
+    const cartaoAntigo = converterValor(pedidoSelecionado.cartao);
+    const dinheiroAntigo = converterValor(pedidoSelecionado.dinheiro);
+
+    // 2. Padroniza o texto do método de pagamento
+    const metodoTratado = typeof metodoPagamentoReal === 'string' ? metodoPagamentoReal.toLowerCase() : '';
+
+    // 3. Descobre o valor que o cliente devia antes de abrir o modal
+    const valorDevido = converterValor(pedidoSelecionado.fiado) > 0 
+      ? converterValor(pedidoSelecionado.fiado) 
+      : converterValor(pedidoSelecionado.total);
+
+    // 4. Pega o valor exato que você digitou no modal (seja parcial ou total)
+    const valorPagoNestaRodada = dadosAdicionais.valorPago !== undefined 
+      ? converterValor(dadosAdicionais.valorPago) 
+      : valorDevido;
+
+    // 5. Calcula os valores desta rodada usando o que foi realmente pago
+    const novoPix = dadosAdicionais.pix !== undefined ? converterValor(dadosAdicionais.pix) : (metodoTratado === 'pix' ? valorPagoNestaRodada : 0);
+    const novoCartao = dadosAdicionais.cartao !== undefined ? converterValor(dadosAdicionais.cartao) : (metodoTratado.includes('cart') ? valorPagoNestaRodada : 0);
+    const novoDinheiro = dadosAdicionais.dinheiro !== undefined ? converterValor(dadosAdicionais.dinheiro) : (metodoTratado === 'dinheiro' ? valorPagoNestaRodada : 0);
+
+    // 6. Captura a modalidade e parcelas (Essencial para o backend calcular a taxa corretamente)
+    const modalidadeCartaoSalvar = dadosAdicionais.modalidadeCartao || pedidoSelecionado.modalidade_cartao || null;
+    const parcelasCartaoSalvar = dadosAdicionais.parcelasCartao || pedidoSelecionado.parcelas_cartao || 1;
 
     try {
       const response = await fetch(`http://localhost:5000/api/vendas/${pedidoSelecionado.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'Pago',
-          pagamento: metodoPagamentoReal,
-          data_pagamento: agora,
+          status: 'Pago', 
+          pagamento: metodoPagamentoReal, 
           telefone: pedidoSelecionado.telefone || pedidoSelecionado.telefone_cliente,
           endereco: pedidoSelecionado.endereco,
           lat: pedidoSelecionado.lat,
           lng: pedidoSelecionado.lng,
-          ...dadosAdicionais
+          ...dadosAdicionais,
+          pix: pixAntigo + novoPix,
+          cartao: cartaoAntigo + novoCartao,
+          modalidade_cartao: modalidadeCartaoSalvar,
+          parcelas_cartao: parcelasCartaoSalvar, // <--- Enviando parcelas para cálculo de taxa
+          dinheiro: dinheiroAntigo + novoDinheiro
         })
       });
 
@@ -90,15 +127,13 @@ const Pedidos = () => {
     setIsModalOpen(true);
   };
 
-  // Função nova para abrir o WhatsApp
   const abrirWhatsApp = (numero) => {
     if (!numero) return;
-    const numeroLimpo = numero.toString().replace(/\D/g, ''); // Remove tudo que não é número
+    const numeroLimpo = numero.toString().replace(/\D/g, ''); 
     if (numeroLimpo.length < 10) {
       alert('Número de telefone inválido para o WhatsApp.');
       return;
     }
-    // Adiciona o 55 (Brasil) automaticamente se não tiver
     const ddi = numeroLimpo.startsWith('55') ? '' : '55';
     window.open(`https://wa.me/${ddi}${numeroLimpo}`, '_blank');
   };
@@ -112,7 +147,7 @@ const Pedidos = () => {
     <div className="container-pedidos">
       <header className="header-pedidos">
         <div className="header-titulo-pedidos">
-          <h1 style={{ margin: 0 }}>Pedidos Pendentes (Fiado)</h1>
+          <h1 style={{ margin: 0 }}>Pedidos Pendentes (Fiado / Entrega)</h1>
         </div>
         
         <div className="barra-pesquisa">
@@ -135,8 +170,11 @@ const Pedidos = () => {
         ) : (
           <div className="grid-pedidos">
             {pedidosFiltrados.map((pedido) => {
-              // Garante que pega o telefone, independente de como o backend mandou
               const telefoneExibicao = pedido.telefone || pedido.telefone_cliente || pedido.celular;
+              
+              
+              const valorDevido = converterValor(pedido.fiado) > 0 ? converterValor(pedido.fiado) : converterValor(pedido.total);
+              const ehPagamentoParcial = converterValor(pedido.fiado) > 0 && converterValor(pedido.fiado) < converterValor(pedido.total);
 
               return (
                 <div key={pedido.id} className="card-pedido-item">
@@ -154,7 +192,6 @@ const Pedidos = () => {
                         <strong>{pedido.nome_cliente || pedido.cliente || 'Balcão'}</strong>
                       </div>
                       
-                      {/* Lógica do WhatsApp alterada para ser um botão clicável */}
                       {telefoneExibicao ? (
                         <button 
                           onClick={() => abrirWhatsApp(telefoneExibicao)}
@@ -181,7 +218,7 @@ const Pedidos = () => {
                       {Array.isArray(pedido.itens) ? (
                         pedido.itens.map((item, index) => (
                           <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '5px', borderRadius: '4px', marginBottom: '4px', fontSize: '0.9rem' }}>
-                            <span>{item.quantidade}x {item.produto_nome} <small>(R$ {item.subtotal.toFixed(2)})</small></span>
+                            <span>{item.quantidade}x {item.produto_nome} <small>(R$ {converterValor(item.subtotal).toFixed(2)})</small></span>
                             <button
                               onClick={() => removerItemDaVenda(pedido.id, item)}
                               style={{ background: 'transparent', border: 'none', color: '#dc3545', cursor: 'pointer', padding: '5px' }}
@@ -196,8 +233,17 @@ const Pedidos = () => {
                       )}
                     </div>
 
-                    <div className="valor-pedido" style={{ marginTop: '10px' }}>
-                      Total: R$ {pedido.total.toFixed(2)}
+                    <div className="valor-pedido" style={{ marginTop: '10px', display: 'flex', flexDirection: 'column' }}>
+                      {ehPagamentoParcial ? (
+                        <>
+                          <span style={{ fontSize: '0.85rem', color: '#666' }}>Total do Pedido: R$ {converterValor(pedido.total).toFixed(2)}</span>
+                          <span style={{ color: '#d32f2f', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                            <FaExclamationCircle /> Falta Pagar: R$ {valorDevido.toFixed(2)}
+                          </span>
+                        </>
+                      ) : (
+                        <span style={{ fontWeight: 'bold' }}>Total a Receber: R$ {valorDevido.toFixed(2)}</span>
+                      )}
                     </div>
                   </div>
 
@@ -218,13 +264,14 @@ const Pedidos = () => {
             setIsModalOpen(false);
             setPedidoSelecionado(null);
           }}
-          valorTotal={pedidoSelecionado.total.toFixed(2)}
+          
+          valorTotal={(converterValor(pedidoSelecionado.fiado) > 0 ? converterValor(pedidoSelecionado.fiado) : converterValor(pedidoSelecionado.total)).toFixed(2)}
           onConfirm={finalizarBaixa}
-          esconderPagarDepois={true}
+          esconderPagarDepois={false} 
         />
       )}
     </div>
   );
 };
 
-export default Pedidos; 
+export default Pedidos;

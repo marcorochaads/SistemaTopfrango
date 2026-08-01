@@ -10,7 +10,7 @@
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-/* NOVA CLASSE AQUI: Dá espaço para o menu flutuante lateral */
+
 .header-titulo-rotas {
   margin-left: 60px;
   display: flex;
@@ -41,13 +41,13 @@
 
 .card-info-entrega {
   background: white; 
-  padding: 20px; /* Reduzi de 25px para 20px */
+  padding: 20px; 
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.08); 
   display: flex; 
   flex-direction: column; 
-  gap: 15px; /* Reduzi de 20px para 15px para o conteúdo ficar mais compacto */
-  overflow-y: auto; /* ADICIONE ISSO: Cria uma barra de rolagem vertical só neste bloco se ele passar do limite da tela */
+  gap: 15px; 
+  overflow-y: auto; 
 }
 
 .campo-rota label { display: flex; align-items: center; gap: 8px; font-weight: bold; color: #555; margin-bottom: 8px; }
@@ -101,7 +101,7 @@
   border: none !important;
 }
 
-/* Wrapper que segura o ícone */
+
 .icone-chegada-pin {
   display: flex;
   justify-content: center;
@@ -110,7 +110,7 @@
   height: 100%;
 }
 
-/* Efeito de hover no pino do destino (opcional, mas legal) */
+
 .icone-chegada-pin svg {
   transition: transform 0.2s;
 }
@@ -118,7 +118,7 @@
   transform: scale(1.1) translateY(-5px);
 }
 
-/* Estilização opcional para o logo da sede ficar mais visível */
+
 .icone-mapa-sede {
   filter: drop-shadow(0px 4px 4px rgba(0, 0, 0, 0.3));
 }
@@ -126,7 +126,7 @@
 
 .campo-rota input, .select-pedido, .display-fake-input {
   width: 100%; 
-  padding: 10px; /* Reduzi de 12px para 10px */
+  padding: 10px; 
   border: 2px solid #ddd; 
   border-radius: 8px; 
   box-sizing: border-box;
@@ -136,5 +136,5 @@
   background-color: #f9f9f9;
   color: #555;
   font-weight: 500;
-  min-height: 40px; /* Reduzi de 44px para 40px */
+  min-height: 40px; 
 }

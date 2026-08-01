@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import './Estoque.css';
-import { FaBoxes, FaPlus, FaTrash, FaTag, FaBalanceScale, FaPen } from 'react-icons/fa';
+import { FaBoxes, FaPlus, FaTrash, FaTag, FaPen } from 'react-icons/fa';
 import { FaBrazilianRealSign } from 'react-icons/fa6';
 
 const Estoque = () => {
@@ -36,6 +36,12 @@ const Estoque = () => {
     return parseFloat(str.replace(/\./g, '').replace(',', '.'));
   };
 
+  // Blindagem contra digitação de vírgulas no campo de quantidade
+  const parseQuantidade = (valor) => {
+    if (!valor) return 0;
+    return parseFloat(String(valor).replace(',', '.'));
+  };
+
   const formatarParaInput = (valor) => {
     if (!valor && valor !== 0) return "";
     let v = Number(valor).toFixed(2);
@@ -59,13 +65,15 @@ const Estoque = () => {
   }, []);
 
   const adicionarProduto = async () => {
-    if (!nome || !valorCompra || !quantidade || (isKG && !valorKG) || (!isKG && !valorVenda)) {
+    const nomeTratado = nome.trim(); // Limpa espaços extras no começo e no fim
+
+    if (!nomeTratado || !valorCompra || !quantidade || (isKG && !valorKG) || (!isKG && !valorVenda)) {
       alert("Preencha todos os campos obrigatórios!");
       return;
     }
 
     const numCompra = parseDinheiro(valorCompra);
-    const numQtd = parseFloat(quantidade);
+    const numQtd = parseQuantidade(quantidade);
     const numVenda = parseDinheiro(valorVenda);
     const numKG = parseDinheiro(valorKG);
 
@@ -84,15 +92,36 @@ const Estoque = () => {
       return;
     }
 
-    if (!isKG && numVenda < numCompra && !isCompraLote) {
-      alert(`Erro: Prejuízo detectado! O preço de venda não pode ser inferior ao preço de compra.`);
-      return;
+    // --- VALIDAÇÃO INTELIGENTE DE PREJUÍZO ---
+    if (!isKG) {
+      if (isCompraLote) {
+        const faturamentoTotalLote = numQtd * numVenda;
+        if (faturamentoTotalLote < numCompra) {
+          alert(`Erro: Prejuízo detectado! O lote custou R$ ${numCompra.toFixed(2)}, mas a venda de todas as ${numQtd} unidades renderá apenas R$ ${faturamentoTotalLote.toFixed(2)}.`);
+          return;
+        }
+      } else if (numVenda < numCompra) {
+        alert("Erro: Prejuízo detectado! O preço de venda da unidade não pode ser menor que o custo de compra.");
+        return;
+      }
+    } 
+    else {
+      if (isCompraLote) {
+        const faturamentoTotalPeso = numQtd * numKG;
+        if (faturamentoTotalPeso < numCompra) {
+          alert(`Erro: Prejuízo detectado! O lote custou R$ ${numCompra.toFixed(2)}, mas a venda dos ${numQtd}kg renderá apenas R$ ${faturamentoTotalPeso.toFixed(2)}.`);
+          return;
+        }
+      } else if (numKG < numCompra) {
+        alert("Erro: Prejuízo detectado! O preço de venda do KG não pode ser menor que o custo de compra do KG.");
+        return;
+      }
     }
 
     const novoProduto = {
-      nome,
+      nome: nomeTratado, 
       qtd: numQtd,
-      vCompra: numCompra,
+      vCompra: isCompraLote ? (numCompra / numQtd) : numCompra,
       vVenda: isKG ? 0 : numVenda,
       vKG: isKG ? numKG : 0,
       unidade: isKG ? 'kg' : 'un',
@@ -109,10 +138,12 @@ const Estoque = () => {
       if (res.ok) {
         alert("Produto/Lote cadastrado com sucesso!");
         carregarProdutos();
+        
         setNome(''); setValorCompra(''); setValorVenda(''); setQuantidade(''); setValorKG('');
         setIsCompraLote(false); 
+        setIsKG(false); 
       } else {
-        alert("Erro ao guardar o produto na base de dados.");
+        alert("Este produto já está cadastrado.");
       }
     } catch (error) {
       alert("Erro ao conectar com o servidor.");
@@ -138,13 +169,15 @@ const Estoque = () => {
   };
 
   const salvarEdicao = async () => {
-    if (!prodEdit.nome || prodEdit.qtd === '' || prodEdit.vCompra === '') {
+    const nomeTratado = prodEdit.nome.trim(); 
+
+    if (!nomeTratado || prodEdit.qtd === '' || prodEdit.vCompra === '') {
       alert("Preencha os campos obrigatórios para editar!");
       return;
     }
 
     const numCompra = parseDinheiro(prodEdit.vCompra);
-    const numQtd = parseFloat(prodEdit.qtd);
+    const numQtd = parseQuantidade(prodEdit.qtd); 
     const numVenda = parseDinheiro(prodEdit.vVenda);
     const numKG = parseDinheiro(prodEdit.vKG);
 
@@ -153,10 +186,33 @@ const Estoque = () => {
       return;
     }
 
+    if (prodEdit.unidade === 'kg' && numKG <= 0) {
+      alert("Erro: O valor do KG deve ser maior que zero!");
+      return;
+    }
+    if (prodEdit.unidade === 'un' && numVenda <= 0) {
+      alert("Erro: O preço de venda unitário deve ser maior que zero!");
+      return;
+    }
+
+    if (prodEdit.unidade === 'un') {
+      if (numVenda < numCompra) {
+        alert("Erro: Prejuízo detectado! O preço de venda da unidade não pode ser menor que o custo unitário.");
+        return;
+      }
+    } 
+    else if (prodEdit.unidade === 'kg') {
+      if (numKG < numCompra) {
+        alert("Erro: Prejuízo detectado! O preço de venda do KG não pode ser menor que o custo do KG.");
+        return;
+      }
+    }
+
     const produtoAtualizado = {
       ...prodEdit,
+      nome: nomeTratado, 
       qtd: numQtd,
-      vCompra: numCompra,
+      vCompra: numCompra, 
       vVenda: prodEdit.unidade === 'un' ? numVenda : 0,
       vKG: prodEdit.unidade === 'kg' ? numKG : 0
     };
@@ -174,7 +230,7 @@ const Estoque = () => {
         setModalEdicao(false); 
         setProdEdit(null);
       } else {
-        alert("Erro ao atualizar o produto.");
+        alert("Erro ao atualizar o produto. Verifique se o nome já existe.");
       }
     } catch (error) {
       alert("Erro ao conectar com o servidor para editar.");
@@ -202,7 +258,6 @@ const Estoque = () => {
         <section className="card-formulario">
           <h2>Novo Produto / Cadastro de Lote</h2>
           
-          {/* Adicionado estilo grid diretamente para forçar alinhamento */}
           <div className="grid-form" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'end', marginBottom: '20px' }}>
             
             <div className="campo-form nome-prod" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -210,7 +265,6 @@ const Estoque = () => {
               <input type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Frango Inteiro" style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
             </div>
 
-            {/* Container flex para centralizar o toggle com os inputs de texto */}
             <div className="campo-form checkbox-kg" style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '42px' }}>
               <label className="switch" style={{ margin: 0 }}>
                 <input type="checkbox" checked={isCompraLote} onChange={e => setIsCompraLote(e.target.checked)} />
@@ -242,7 +296,13 @@ const Estoque = () => {
               <>
                 <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={{ fontWeight: 'bold' }}>Quantidade {isCompraLote ? 'Total do Lote' : ''} (KG):</label>
-                  <input type="number" step="any" value={quantidade} onChange={e => setQuantidade(e.target.value)} placeholder="0" style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
+                  <input 
+                    type="text" 
+                    value={quantidade} 
+                    onChange={e => setQuantidade(e.target.value.replace(/[^0-9.,]/g, ''))} 
+                    placeholder="Ex: 1,5" 
+                    style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} 
+                  />
                 </div>
                 <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> Valor de Venda (KG):</label>
@@ -259,7 +319,13 @@ const Estoque = () => {
               <>
                 <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={{ fontWeight: 'bold' }}>Quantidade (UN):</label>
-                  <input type="number" step="1" value={quantidade} onChange={e => setQuantidade(e.target.value)} placeholder="0" style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
+                  <input 
+                    type="text" 
+                    value={quantidade} 
+                    onChange={e => setQuantidade(e.target.value.replace(/[^0-9.,]/g, ''))} 
+                    placeholder="0" 
+                    style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} 
+                  />
                 </div>
                 <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <label style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> Valor de Venda (UN):</label>
@@ -286,6 +352,7 @@ const Estoque = () => {
               <thead>
                 <tr>
                   <th>Nome</th>
+                  <th style={{ textAlign: 'center' }}>Lote?</th> 
                   <th>Em Estoque</th>
                   <th>Preço Venda</th>
                   <th style={{textAlign: 'center'}}>Ações</th>
@@ -295,6 +362,25 @@ const Estoque = () => {
                 {produtos.map(prod => (
                   <tr key={prod.id}>
                     <td><strong>{prod.nome}</strong></td>
+                    
+                    <td style={{ textAlign: 'center' }}>
+                      {prod.isLote ? (
+                        <span style={{
+                          backgroundColor: '#4CAF50',
+                          color: '#fff',
+                          padding: '4px 10px',
+                          borderRadius: '12px',
+                          fontSize: '0.8em',
+                          fontWeight: 'bold',
+                          letterSpacing: '0.5px'
+                        }}>
+                          SIM
+                        </span>
+                      ) : (
+                        <span style={{ color: '#999', fontWeight: 'bold' }}>NÃO</span>
+                      )}
+                    </td>
+
                     <td style={{ color: prod.qtd <= 5 ? '#D32F2F' : 'inherit', fontWeight: 'bold' }}>
                       {prod.unidade === 'kg' ? `${formatarPeso(prod.qtd)}(KG)` : `${prod.qtd}(UN)`}
                     </td>
@@ -323,7 +409,16 @@ const Estoque = () => {
       {modalEdicao && prodEdit && (
         <div className="modal-overlay">
           <div className="modal-edicao">
-            <h2>Editar: {prodEdit.nome}</h2>
+            
+           <h2>
+             Editar: {prodEdit.nome} 
+             {prodEdit.isLote ? (
+               <span style={{ fontSize: '0.6em', color: '#4CAF50', marginLeft: '10px', verticalAlign: 'middle', border: '1px solid #4CAF50', padding: '2px 6px', borderRadius: '8px' }}>
+                 LOTE
+               </span>
+             ) : null}
+           </h2>
+
             <div className="grid-form modal-grid">
               <div className="campo-form">
                 <label>Nome do Produto:</label>
@@ -331,10 +426,15 @@ const Estoque = () => {
               </div>
               <div className="campo-form">
                 <label>Nova Quantidade ({prodEdit.unidade}):</label>
-                <input type="number" step="any" value={prodEdit.qtd} onChange={e => setProdEdit({...prodEdit, qtd: e.target.value})} />
+                <input 
+                  type="text" 
+                  value={prodEdit.qtd} 
+                  onChange={e => setProdEdit({...prodEdit, qtd: e.target.value.replace(/[^0-9.,]/g, '')})} 
+                />
               </div>
               <div className="campo-form">
-                <label><FaBrazilianRealSign /> Custo de Compra Atual:</label>
+                {/* Correção para clareza no modal: mostrar que o valor já está rateado */}
+                <label><FaBrazilianRealSign /> Custo de Compra {prodEdit.isLote ? '(Unitário/Rateado):' : 'Atual:'}</label>
                 <input 
                   type="text" 
                   value={prodEdit.vCompra} 

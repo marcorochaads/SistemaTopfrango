@@ -1,11 +1,23 @@
-require("./instrument.js");
-const Sentry = require("@sentry/node");
+const path = require('path');
+const fs = require('fs');
+const { exec } = require('child_process');
+
+// ==========================================
+// 1. INICIALIZAÇÃO DO SENTRY (DEVE VIR ANTES DO EXPRESS)
+// ==========================================
+const instrumentPath = path.join(process.cwd(), 'instrument.js');
+if (fs.existsSync(instrumentPath)) {
+    require(instrumentPath);
+}
+const Sentry = require("@sentry/node"); // Sentry carregado antes!
+
+// ==========================================
+// 2. IMPORTAÇÕES RESTANTES
+// ==========================================
 const express = require('express');
 const sqlite3 = require('sqlite3');
 const { open } = require('sqlite');
 const cors = require('cors');
-const fs = require('fs');
-const path = require('path');
 const cron = require('node-cron');
 
 const app = express();
@@ -13,7 +25,9 @@ app.use(express.json());
 app.use(cors());
 
 let db;
-const DB_NAME = './topfrango.db';
+
+// Garante que o banco seja criado na pasta real do Windows onde o .exe está sendo executado
+const DB_NAME = path.join(process.cwd(), 'topfrango.db');
 
 const obterCaminhoDrive = () => {
     const letras = ['G', 'H', 'I', 'D', 'E', 'F'];
@@ -24,7 +38,7 @@ const obterCaminhoDrive = () => {
         }
     }
     // Plano B: se o Google Drive não estiver rodando no PC, salva na mesma pasta do .exe
-    return path.join(__dirname, 'Backups_Emergencia');
+   return path.join(process.cwd(), 'Backups_Emergencia');
 };
 
 const BACKUP_DIR = obterCaminhoDrive();
@@ -63,7 +77,7 @@ const limparBackupsAntigos = () => {
         // Filtra só os arquivos de backup para não apagar nada errado
         const backups = arquivos.filter(f => f.startsWith('backup-topfrango'));
         
-        // Mantém apenas os 10 últimos backups (ideal para o turno da manhã)
+        // Mantém apenas os 10 últimos backups
         if (backups.length > 10) {
             const arquivosOrdenados = backups.sort(); 
             const quantosApagar = backups.length - 10;
@@ -119,6 +133,7 @@ const limparBackupsAntigos = () => {
             dinheiro REAL DEFAULT 0,
             pix REAL DEFAULT 0,
             cartao REAL DEFAULT 0,
+            fiado REAL DEFAULT 0,
             status TEXT,
             data TEXT,
             data_pagamento TEXT,
@@ -145,7 +160,6 @@ const limparBackupsAntigos = () => {
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             usuario_id INTEGER,
             valor REAL NOT NULL,
-            motivo TEXT NOT NULL,
             data TEXT,
             FOREIGN KEY (usuario_id) REFERENCES usuarios(id)
         );
@@ -184,6 +198,21 @@ const limparBackupsAntigos = () => {
     if (!nomesColunasVendas.includes('dinheiro')) await db.exec("ALTER TABLE vendas ADD COLUMN dinheiro REAL DEFAULT 0;");
     if (!nomesColunasVendas.includes('pix')) await db.exec("ALTER TABLE vendas ADD COLUMN pix REAL DEFAULT 0;");
     if (!nomesColunasVendas.includes('cartao')) await db.exec("ALTER TABLE vendas ADD COLUMN cartao REAL DEFAULT 0;");
+    
+    // Atualizações para gestão de Fiado e Taxa de Cartão
+    if (!nomesColunasVendas.includes('fiado')) await db.exec("ALTER TABLE vendas ADD COLUMN fiado REAL DEFAULT 0;");
+    if (!nomesColunasVendas.includes('taxa_cartao')) await db.exec("ALTER TABLE vendas ADD COLUMN taxa_cartao REAL DEFAULT 0;");
+    
+    // Novas colunas para suportar Modalidade e Parcelas do Cartão
+    if (!nomesColunasVendas.includes('modalidade_cartao')) await db.exec("ALTER TABLE vendas ADD COLUMN modalidade_cartao TEXT;");
+    if (!nomesColunasVendas.includes('parcelas_cartao')) await db.exec("ALTER TABLE vendas ADD COLUMN parcelas_cartao INTEGER;");
+
+    // --- VERIFICAÇÃO PARA ATUALIZAR A TABELA DE PRODUTOS COM O LOTE ---
+    const colunasProdutos = await db.all("PRAGMA table_info(produtos)");
+    const nomesColunasProdutos = colunasProdutos.map(c => c.name);
+    if (!nomesColunasProdutos.includes('isLote')) {
+        await db.exec("ALTER TABLE produtos ADD COLUMN isLote INTEGER DEFAULT 0;");
+    }
 
     const qtdUsuarios = await db.get('SELECT COUNT(*) as count FROM usuarios');
     if (qtdUsuarios.count === 0) {
@@ -201,7 +230,6 @@ const limparBackupsAntigos = () => {
 
 // ==========================================
 // MUDANÇA NO AGENDAMENTO: A CADA 1 HORA
-// Expressão Cron '0 * * * *' = Hora cheia
 // ==========================================
 cron.schedule('0 * * * *', () => {
     console.log("⏰ Realizando backup agendado (A cada 1 hora)...");
@@ -236,10 +264,14 @@ app.post('/api/aberturas', async (req, res) => {
 // ROTAS DE VENDAS
 // ==========================================
 app.post('/api/vendas', async (req, res) => {
-    const { cliente_id, cliente_nome, cliente_telefone, telefone, usuario_id, total, pagamento, dinheiro, pix, cartao, status, data, itensArray } = req.body;
+    const { cliente_id, cliente_nome, cliente_telefone, telefone, usuario_id, total, pagamento, dinheiro, pix, cartao, taxa_cartao, fiado, status, data, itensArray, modalidade_cartao, parcelas_cartao } = req.body;
     
     const data_pedido = data || new Date().toLocaleString('pt-BR'); 
     const data_pag = status === 'Pago' ? data_pedido : null; 
+
+    // Pega os valores passados pelo frontend (se não vier nada, zera)
+    const cartaoLiquido = Number(cartao || 0);
+    const valorTaxaCartao = Number(taxa_cartao || 0);
 
     try {
         await db.run('BEGIN TRANSACTION');
@@ -257,9 +289,10 @@ app.post('/api/vendas', async (req, res) => {
             idDoCliente = resultCliente.lastID; 
         }
 
+        // Salvando cartaoLiquido, valorTaxaCartao, modalidade_cartao e parcelas_cartao no banco
         const resultVenda = await db.run(
-            'INSERT INTO vendas (cliente_id, usuario_id, total, pagamento, dinheiro, pix, cartao, status, data, data_pagamento, telefone_entrega) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
-            [idDoCliente, usuario_id || 1, total, pagamento, dinheiro || 0, pix || 0, cartao || 0, status, data_pedido, data_pag, telefoneFinal]
+            'INSERT INTO vendas (cliente_id, usuario_id, total, pagamento, dinheiro, pix, cartao, taxa_cartao, modalidade_cartao, parcelas_cartao, fiado, status, data, data_pagamento, telefone_entrega) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
+            [idDoCliente, usuario_id || 1, total, pagamento, dinheiro || 0, pix || 0, cartaoLiquido, valorTaxaCartao, modalidade_cartao || null, parcelas_cartao || null, fiado || 0, status, data_pedido, data_pag, telefoneFinal]
         );
         const vendaId = resultVenda.lastID;
 
@@ -276,7 +309,10 @@ app.post('/api/vendas', async (req, res) => {
         await db.run('COMMIT');
         res.status(201).json({ message: "Venda salva com sucesso!" });
     } catch (e) { 
-        await db.run('ROLLBACK');
+        // CORREÇÃO DO ROLLBACK AQUI: Tenta reverter a transação, ignora se não tiver transação aberta.
+        try { await db.run('ROLLBACK'); } catch (err) {} 
+        console.error("❌ Erro ao salvar venda:", e); // Mostra o erro real no console
+        Sentry.captureException(e); // Envia o erro real pro Sentry
         res.status(500).json({ error: e.message }); 
     }
 });
@@ -307,8 +343,31 @@ app.get('/api/vendas', async (req, res) => {
     }
 });
 
+// ==========================================
+// ROTA TDD - SIMULAR DESCONTO
+// ==========================================
+app.post('/api/vendas/simular-desconto', (req, res) => {
+    const { precoVenda, precoCusto, percentualDesconto } = req.body;
+    
+    if (percentualDesconto < 0) {
+        return res.status(400).json({ error: 'Percentual inválido.' });
+    }
+
+    const valorDesconto = precoVenda * (percentualDesconto / 100);
+    const precoFinal = precoVenda - valorDesconto;
+
+    if (precoFinal < precoCusto) {
+        return res.status(400).json({ error: 'Desconto não permitido: O valor final geraria prejuízo.' });
+    }
+
+    res.json({ precoFinal: Number(precoFinal.toFixed(2)) });
+});
+
+// ==========================================
+// ROTA DE ATUALIZAÇÃO (CORRIGIDA - TRAVA MAIS INTELIGENTE)
+// ==========================================
 app.put('/api/vendas/:id', async (req, res) => {
-    const { status, pagamento, dinheiro, pix, cartao, endereco, telefone, lat, lng } = req.body;
+    const { status, pagamento, dinheiro, pix, cartao, taxa_cartao, endereco, telefone, lat, lng, modalidade_cartao, parcelas_cartao } = req.body;
     const { id } = req.params;
     try {
         const atual = await db.get('SELECT * FROM vendas WHERE id = ?', [id]);
@@ -318,23 +377,46 @@ app.put('/api/vendas/:id', async (req, res) => {
         const novoTelefone = telefone !== undefined ? telefone : atual.telefone_entrega;
         const novaLat = lat !== undefined ? lat : atual.lat;
         const novaLng = lng !== undefined ? lng : atual.lng;
-        
-        const novoDinheiro = dinheiro !== undefined ? dinheiro : atual.dinheiro;
-        const novoPix = pix !== undefined ? pix : atual.pix;
-        const novoCartao = cartao !== undefined ? cartao : atual.cartao;
 
-        if (status === 'Pago' && atual.status !== 'Pago') {
-            const momentoPagamento = new Date().toLocaleString('pt-BR');
-            await db.run(
-                'UPDATE vendas SET status = ?, pagamento = ?, dinheiro = ?, pix = ?, cartao = ?, data_pagamento = ?, endereco = ?, telefone_entrega = ?, lat = ?, lng = ? WHERE id = ?', 
-                [status, pagamento, novoDinheiro, novoPix, novoCartao, momentoPagamento, novoEndereco, novoTelefone, novaLat, novaLng, id]
-            );
-        } else {
-            await db.run(
-                'UPDATE vendas SET status = ?, pagamento = ?, dinheiro = ?, pix = ?, cartao = ?, endereco = ?, telefone_entrega = ?, lat = ?, lng = ? WHERE id = ?', 
-                [status, pagamento, novoDinheiro, novoPix, novoCartao, novoEndereco, novoTelefone, novaLat, novaLng, id]
-            );
+        // Recupera os valores enviados do frontend, ou mantém os atuais
+        const novoDinheiro = dinheiro !== undefined ? Number(dinheiro) : Number(atual.dinheiro || 0);
+        const novoPix = pix !== undefined ? Number(pix) : Number(atual.pix || 0);
+        
+        let novoCartao = cartao !== undefined ? Number(cartao) : Number(atual.cartao || 0);
+        let novaTaxaCartao = taxa_cartao !== undefined ? Number(taxa_cartao) : Number(atual.taxa_cartao || 0);
+        let novaModalidadeCartao = modalidade_cartao !== undefined ? modalidade_cartao : atual.modalidade_cartao;
+        let novasParcelasCartao = parcelas_cartao !== undefined ? parcelas_cartao : atual.parcelas_cartao;
+
+        // MATEMÁTICA INFALÍVEL: O fiado restante soma a taxa para saber que o cliente quitou o bruto
+        const novoFiado = Math.max(0, Number(atual.total) - (novoDinheiro + novoPix + novoCartao + novaTaxaCartao));
+
+        // NOVA TRAVA DE SEGURANÇA: Respeita os status de entrega!
+        let statusFinal = status !== undefined ? status : atual.status;
+        
+        // Só barra/altera o status se a intenção for realmente finalizar como financeiro
+        if (statusFinal === 'Pago' && novoFiado > 0) {
+            statusFinal = 'Pendente'; // Tentou botar Pago mas falta dinheiro
+        } else if (statusFinal === 'Pendente' && novoFiado <= 0) {
+            statusFinal = 'Pago'; // Pagou tudo, então força ser Pago
         }
+
+        // Controle inteligente da data de pagamento
+        let novaDataPagamento = atual.data_pagamento;
+        if (statusFinal === 'Pago' && !atual.data_pagamento) {
+            novaDataPagamento = new Date().toLocaleString('pt-BR'); 
+        } else if (statusFinal === 'Pendente') {
+            novaDataPagamento = null; 
+        }
+
+        // Salva tudo de forma consistente no banco de dados
+        await db.run(
+            `UPDATE vendas SET 
+                status = ?, pagamento = ?, dinheiro = ?, pix = ?, cartao = ?, taxa_cartao = ?, modalidade_cartao = ?, parcelas_cartao = ?, fiado = ?, 
+                data_pagamento = ?, endereco = ?, telefone_entrega = ?, lat = ?, lng = ? 
+             WHERE id = ?`, 
+            [statusFinal, pagamento, novoDinheiro, novoPix, novoCartao, novaTaxaCartao, novaModalidadeCartao, novasParcelasCartao, novoFiado, novaDataPagamento, novoEndereco, novoTelefone, novaLat, novaLng, id]
+        );
+
         res.json({ message: "Pedido atualizado com sucesso!" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -370,7 +452,9 @@ app.delete('/api/vendas/:venda_id/remover-item/:produto_id', async (req, res) =>
         await db.run('COMMIT');
         res.json({ message: "Item removido e recalculado!" });
     } catch (e) {
-        await db.run('ROLLBACK');
+        // CORREÇÃO DO ROLLBACK AQUI TAMBÉM
+        try { await db.run('ROLLBACK'); } catch (err) {} 
+        Sentry.captureException(e);
         res.status(500).json({ error: e.message });
     }
 });
@@ -400,22 +484,38 @@ app.get('/api/produtos', async (req, res) => {
 });
 
 app.post('/api/produtos', async (req, res) => {
-    const { nome, qtd, vCompra, vVenda, vKG, unidade } = req.body;
+    const { nome, qtd, vCompra, vVenda, vKG, unidade, isLote } = req.body;
+    const loteNum = isLote ? 1 : 0; 
+
     try {
+        // TRAVA DE UNICIDADE (RI-4): Verifica se o nome já existe
+        const existe = await db.get('SELECT id FROM produtos WHERE nome = ?', [nome]);
+        if (existe) {
+            return res.status(400).json({ error: 'Já existe um produto com este nome cadastrado.' });
+        }
+
         await db.run(
-            'INSERT INTO produtos (nome, qtd, vCompra, vVenda, vKG, unidade) VALUES (?, ?, ?, ?, ?, ?)',
-            [nome, qtd, vCompra, vVenda, vKG, unidade]
+            'INSERT INTO produtos (nome, qtd, vCompra, vVenda, vKG, unidade, isLote) VALUES (?, ?, ?, ?, ?, ?, ?)',
+            [nome, qtd, vCompra, vVenda, vKG, unidade, loteNum]
         );
         res.status(201).json({ message: "Produto cadastrado!" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 app.put('/api/produtos/:id', async (req, res) => {
-    const { nome, qtd, vCompra, vVenda, vKG, unidade } = req.body;
+    const { nome, qtd, vCompra, vVenda, vKG, unidade, isLote } = req.body;
+    const loteNum = isLote ? 1 : 0;
+
     try {
+        // TRAVA DE UNICIDADE NA EDIÇÃO: Verifica se OUTRO produto já usa esse nome
+        const existe = await db.get('SELECT id FROM produtos WHERE nome = ? AND id != ?', [nome, req.params.id]);
+        if (existe) {
+            return res.status(400).json({ error: 'Já existe outro produto usando este nome.' });
+        }
+
         await db.run(
-            'UPDATE produtos SET nome = ?, qtd = ?, vCompra = ?, vVenda = ?, vKG = ?, unidade = ? WHERE id = ?',
-            [nome, qtd, vCompra, vVenda, vKG, unidade, req.params.id]
+            'UPDATE produtos SET nome = ?, qtd = ?, vCompra = ?, vVenda = ?, vKG = ?, unidade = ?, isLote = ? WHERE id = ?',
+            [nome, qtd, vCompra, vVenda, vKG, unidade, loteNum, req.params.id]
         );
         res.json({ message: "Produto atualizado!" });
     } catch (e) { res.status(500).json({ error: e.message }); }
@@ -558,6 +658,15 @@ app.delete('/api/usuarios/:id', async (req, res) => {
     }
 });
 
+app.use(express.static(path.join(process.cwd(), 'build')));
+
+app.use((req, res, next) => {
+    if (!req.url.startsWith('/api')) {
+        return res.sendFile(path.join(__dirname, 'build', 'index.html'));
+    }
+    next();
+});
+
 // ==========================================
 // TESTE DE OBSERVABILIDADE - SENTRY
 // ==========================================
@@ -570,5 +679,7 @@ Sentry.setupExpressErrorHandler(app);
 // ==========================================
 if (require.main === module) {
     app.listen(5000, () => console.log("🚀 Servidor TopFrango Normalizado rodando na porta 5000"));
+
+    exec('start http://localhost:5000');
 }
 module.exports = app;

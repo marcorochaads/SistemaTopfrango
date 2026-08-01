@@ -262,9 +262,6 @@
   font-style: italic;
 }
 
-/* =========================================
-   RESPONSIVIDADE (Protege contra quebra do grid em telas menores)
-   ========================================= */
 @media (max-width: 1024px) {
   .grid-resumo {
     grid-template-columns: 1fr;

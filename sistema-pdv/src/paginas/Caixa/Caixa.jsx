@@ -77,34 +77,63 @@ const Caixa = () => {
   const valorInicial = aberturaHoje ? parseFloat(aberturaHoje.valor) : 0;
 
   // =========================================================================
-  // CÁLCULOS CORRIGIDOS E BLINDADOS (Idênticos ao do Resultado)
+  // CÁLCULOS BLINDADOS (Lê de todas as vendas, até as pendentes/múltiplas)
   // =========================================================================
-  const vendasPagasHoje = vendasHoje.filter(v => v.status && v.status.toLowerCase().trim() === 'pago');
-
-  const totalDinheiro = vendasPagasHoje.reduce((acc, v) => {
+  
+  const totalDinheiro = vendasHoje.reduce((acc, v) => {
     let valor = Number(v.dinheiro) || 0;
+    let somaDivisoes = (Number(v.pix) || 0) + (Number(v.dinheiro) || 0) + (Number(v.cartao) || 0) + (Number(v.fiado) || 0);
     const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
-    // Só pega o total bruto SE a coluna dinheiro estiver zerada E o tipo for APENAS 'dinheiro'
-    // Se for 'múltiplo', obedece estritamente o que tá na coluna dinheiro.
-    if (valor === 0 && pag === 'dinheiro') valor = Number(v.total) || 0;
+    const status = v.status ? v.status.toLowerCase().trim() : '';
+    
+    if (somaDivisoes === 0 && pag === 'dinheiro' && status === 'pago') {
+        valor = Number(v.total) || 0;
+    }
     return acc + valor;
   }, 0);
 
-  const totalPix = vendasPagasHoje.reduce((acc, v) => {
+  const totalPix = vendasHoje.reduce((acc, v) => {
     let valor = Number(v.pix) || 0;
+    let somaDivisoes = (Number(v.pix) || 0) + (Number(v.dinheiro) || 0) + (Number(v.cartao) || 0) + (Number(v.fiado) || 0);
     const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
-    // Só pega o total bruto SE a coluna pix estiver zerada E o tipo for APENAS 'pix'
-    if (valor === 0 && pag === 'pix') valor = Number(v.total) || 0;
+    const status = v.status ? v.status.toLowerCase().trim() : '';
+    
+    if (somaDivisoes === 0 && pag === 'pix' && status === 'pago') {
+        valor = Number(v.total) || 0;
+    }
     return acc + valor;
   }, 0);
 
-  const totalCartao = vendasPagasHoje.reduce((acc, v) => {
-    let valor = Number(v.cartao) || 0;
+  // =========================================================================
+  // NOVO CÁLCULO DE CARTÃO (BRUTO, LÍQUIDO, TAXAS E MODALIDADES)
+  // =========================================================================
+  const totaisCartao = vendasHoje.reduce((acc, v) => {
+    let liquido = Number(v.cartao) || 0;
+    let taxa = Number(v.taxa_cartao) || 0;
+    let bruto = liquido + taxa; // Reconstrói o valor que o cliente pagou na máquina
+
+    // Verificação de compatibilidade com pedidos antigos (onde a soma das divisões era 0)
+    let somaDivisoes = (Number(v.pix) || 0) + (Number(v.dinheiro) || 0) + liquido + (Number(v.fiado) || 0);
     const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
-    // Só pega o total bruto SE a coluna cartao estiver zerada E o tipo for APENAS 'cartão'/'cartao'
-    if (valor === 0 && (pag === 'cartão' || pag === 'cartao')) valor = Number(v.total) || 0;
-    return acc + valor;
-  }, 0);
+    const status = v.status ? v.status.toLowerCase().trim() : '';
+    
+    if (somaDivisoes === 0 && (pag === 'cartão' || pag === 'cartao') && status === 'pago') {
+        bruto = Number(v.total) || 0;
+        liquido = bruto; // Vendas antigas não possuíam taxa registrada
+        taxa = 0;
+    }
+
+    acc.bruto += bruto;
+    acc.liquido += liquido;
+    acc.taxas += taxa;
+
+    // Subdivisões por modalidade corrigida (remove acentos para garantir a leitura correta)
+    const mod = v.modalidade_cartao ? v.modalidade_cartao.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : '';
+    if (mod.includes('credito')) acc.credito += bruto;
+    if (mod.includes('debito')) acc.debito += bruto;
+
+    return acc;
+  }, { bruto: 0, liquido: 0, taxas: 0, credito: 0, debito: 0 });
 
   const totalSangriasHoje = sangriasHoje.reduce((acc, s) => acc + Number(s.valor || 0), 0);
   
@@ -166,7 +195,7 @@ const Caixa = () => {
       valor_sistema: saldoSistema,
       valor_fisico: valorFisicoNum, 
       pix: totalPix,
-      cartao: totalCartao,
+      cartao: totaisCartao.bruto, // Salvamos o bruto no histórico para facilitar conferência com a maquininha
       diferenca: diferenca,
       status: diferenca === 0 ? 'Bateu' : 'Quebra'
     };
@@ -237,10 +266,35 @@ const Caixa = () => {
                 <span>Total PIX (Informado)</span>
                 <span>R$ {formatarValorBR(totalPix)}</span>
               </div>
-              <div className="item-valor outros-meios">
-                <span>Total Cartão (Informado)</span>
-                <span>R$ {formatarValorBR(totalCartao)}</span>
+              
+              {/* CARTÃO COM SUBDIVISÃO DE CRÉDITO, DÉBITO E TAXAS */}
+              <div className="item-valor outros-meios" style={{ alignItems: 'flex-start' }}>
+                <span>Total Cartão (Bruto)</span>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                  <span>R$ {formatarValorBR(totaisCartao.bruto)}</span>
+                  {(totaisCartao.credito > 0 || totaisCartao.debito > 0) && (
+                    <div style={{ fontSize: '0.8rem', color: '#666', marginTop: '4px', textAlign: 'right' }}>
+                      {totaisCartao.credito > 0 && <div>Crédito: R$ {formatarValorBR(totaisCartao.credito)}</div>}
+                      {totaisCartao.debito > 0 && <div>Débito: R$ {formatarValorBR(totaisCartao.debito)}</div>}
+                    </div>
+                  )}
+                </div>
               </div>
+
+              {totaisCartao.taxas > 0 && (
+                <>
+                  <div className="item-valor outros-meios retirada" style={{ opacity: 0.8 }}>
+                    <span>Taxas da Maquininha (-)</span>
+                    <strong>- R$ {formatarValorBR(totaisCartao.taxas)}</strong>
+                  </div>
+                  <div className="item-valor outros-meios" style={{ color: '#1976d2', fontWeight: 'bold' }}>
+                    <span>Cartão Líquido (Vai pra Conta)</span>
+                    <span>R$ {formatarValorBR(totaisCartao.liquido)}</span>
+                  </div>
+                </>
+              )}
+              {/* FIM CARTÃO */}
+              
             </div>
           </div>
 
