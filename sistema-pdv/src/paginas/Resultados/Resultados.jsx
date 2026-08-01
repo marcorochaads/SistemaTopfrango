@@ -68,24 +68,23 @@ const Resultados = () => {
     let calcPix = converterValor(v.pix);
     let calcDinheiro = converterValor(v.dinheiro);
     
-    // O banco de dados agora já salva o valor líquido e a taxa separados
+    
     let calcCartaoLiquido = converterValor(v.cartao);
     let calcTaxaCartao = converterValor(v.taxa_cartao);
-    let calcCartaoBruto = calcCartaoLiquido + calcTaxaCartao; // Reconstrói o valor da maquininha pra exibir o bruto se precisar
-    
+    let calcCartaoBruto = calcCartaoLiquido + calcTaxaCartao; 
     const vTotalBruto = converterValor(v.total);
 
     const somaDivisoes = calcPix + calcDinheiro + calcCartaoLiquido + converterValor(v.fiado);
     const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
     const status = v.status ? v.status.toLowerCase().trim() : '';
 
-    // Ajuste para vendas antigas ou pagamentos totais onde o array divisionário estava zerado
+    
     if (somaDivisoes === 0 && status === 'pago') {
       if (pag === 'pix') calcPix = vTotalBruto;
       else if (pag === 'dinheiro') calcDinheiro = vTotalBruto;
       else if (pag === 'cartão' || pag === 'cartao') {
         calcCartaoBruto = vTotalBruto;
-        calcCartaoLiquido = vTotalBruto; // Vendas antigas não tinham taxa salva
+        calcCartaoLiquido = vTotalBruto;
         calcTaxaCartao = 0;
       }
     }

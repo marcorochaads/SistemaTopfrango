@@ -104,26 +104,26 @@ const PDV = ({
             const vDinheiro = converterValor(venda.dinheiro);
             const vFiado = converterValor(venda.fiado);
             
-            // Lendo diretamente os valores calculados pelo backend
+            
             const vCartaoLiquido = converterValor(venda.cartao);
             const vTaxasCartao = converterValor(venda.taxa_cartao);
             const vCartaoBruto = vCartaoLiquido + vTaxasCartao;
             
-            // Faturamento Bruto (O que o cliente pagou de fato)
+         
             let valorRecebidoBruto = vPix + vDinheiro + vCartaoBruto;
             
-            // Faturamento Líquido (O que sobrou pra loja após descontar a maquininha)
+            
             let valorRecebidoLiquido = vPix + vDinheiro + vCartaoLiquido;
 
             const somaDivisoes = vPix + vDinheiro + vCartaoLiquido + vFiado;
             
-            // Fallback para vendas antigas (antes de implementarmos as taxas)
+            
             if (somaDivisoes === 0 && statusVenda === 'pago') {
               valorRecebidoBruto = converterValor(venda.total);
               valorRecebidoLiquido = valorRecebidoBruto;
             }
             
-            // Acumulando Valores e Custos do Mês Atual
+            
             if (anoVenda === anoAtual && mesVenda === mesAtual) {
               faturamentoBrutoMesAtual += valorRecebidoBruto;
               faturamentoLiquidoMesAtual += valorRecebidoLiquido;
@@ -133,18 +133,18 @@ const PDV = ({
                   const nomeProduto = item.produto_nome || 'Produto Desconhecido';
                   const infoProd = mapaInfoProdutos[nomeProduto] || { vCompra: 0, isLote: false };
                   
-                  // O custo independe se é lote ou unidade, a base é a mesma
+                  
                   const custoDesteItem = item.quantidade * infoProd.vCompra;
                   custoMesAtual += custoDesteItem;
 
-                  // Contagem para o Top Produtos
+                  
                   if (!contagemProdutos[nomeProduto]) contagemProdutos[nomeProduto] = 0;
                   contagemProdutos[nomeProduto] += item.quantidade;
                 });
               }
             }
 
-            // Acumulando Faturamento Bruto do Mês Anterior para taxa de crescimento
+            
             if (
               (anoVenda === anoAtual && mesVenda === mesAtual - 1) || 
               (mesAtual === 1 && mesVenda === 12 && anoVenda === anoAtual - 1)
@@ -172,7 +172,7 @@ const PDV = ({
           crescimentoCalculado = ((faturamentoBrutoMesAtual - faturamentoBrutoMesAnterior) / faturamentoBrutoMesAnterior) * 100;
         }
 
-        // O Lucro Real agora é calculado a partir do Líquido do Cartão menos o Custo dos Produtos
+        
         const lucroMesCalculado = faturamentoLiquidoMesAtual - custoMesAtual;
 
         setEstatisticas({

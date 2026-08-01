@@ -149,7 +149,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
     let valCartao = 0;
     let valFiado = 0;
     
-    // Variáveis para salvar as informações exatas do cartão
+    
     let modalidadeCartaoSalvar = null;
     let parcelasCartaoSalvar = null;
 
@@ -162,7 +162,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
         valCartao = parseFloat(detalhesPagamento.Cartao || detalhesPagamento.cartao) || 0;
         valFiado = parseFloat(detalhesPagamento.Fiado || detalhesPagamento.fiado) || 0;
 
-        // Captura modalidade e parcelas se vier do pagamento múltiplo
+        
         if (detalhesPagamento.modalidade_cartao) modalidadeCartaoSalvar = detalhesPagamento.modalidade_cartao;
         if (detalhesPagamento.parcelas_cartao) parcelasCartaoSalvar = detalhesPagamento.parcelas_cartao;
 
@@ -184,7 +184,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       else if (metodoLower.includes('cartão') || metodoLower.includes('cartao')) {
         valCartao = (detalhesPagamento && detalhesPagamento.cartao) ? detalhesPagamento.cartao : totalGeral;
         
-        // Puxa a modalidade e parcelas se vier do Modal de forma direta
+        
         if (detalhesPagamento) {
           if (detalhesPagamento.modalidade_cartao) modalidadeCartaoSalvar = detalhesPagamento.modalidade_cartao;
           if (detalhesPagamento.parcelas_cartao) parcelasCartaoSalvar = detalhesPagamento.parcelas_cartao;
@@ -228,7 +228,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       pix: valPix,
       cartao: valCartao,
       modalidade_cartao: modalidadeCartaoSalvar, 
-      parcelas_cartao: parcelasCartaoSalvar, // Incluído as parcelas aqui
+      parcelas_cartao: parcelasCartaoSalvar,
       fiado: valFiado,
       status: statusDaVenda, 
       data: new Date().toLocaleString('pt-BR'),

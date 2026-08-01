@@ -34,7 +34,7 @@
   gap: 20px; 
 }
 
-/* NOVA CLASSE AQUI: Dá espaço para o menu flutuante lateral */
+
 .header-titulo-vendas {
   margin-left: 60px;
 }
@@ -182,7 +182,7 @@
 
 .item-linha {
   display: grid;
-  grid-template-columns: 2.5fr 2.5fr 1.5fr 0.5fr; /* Ajuste para caber o input */
+  grid-template-columns: 2.5fr 2.5fr 1.5fr 0.5fr; 
   align-items: center;
   background-color: #f8f8f8;
   padding: 10px;

@@ -32,7 +32,7 @@ const Pedidos = () => {
     carregarPedidos();
   }, []);
 
-  // Função auxiliar para blindar cálculos contra strings vazias, vírgulas ou valores nulos
+
   const converterValor = (valor) => {
     if (!valor) return 0;
     if (typeof valor === 'number') return valor;
@@ -73,7 +73,7 @@ const Pedidos = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'Pago', // O Back-end muda pra 'Pendente' automaticamente se ainda faltar dinheiro
+          status: 'Pago', 
           pagamento: metodoPagamentoReal, 
           telefone: pedidoSelecionado.telefone || pedidoSelecionado.telefone_cliente,
           endereco: pedidoSelecionado.endereco,
@@ -172,7 +172,7 @@ const Pedidos = () => {
             {pedidosFiltrados.map((pedido) => {
               const telefoneExibicao = pedido.telefone || pedido.telefone_cliente || pedido.celular;
               
-              // Define quanto o cliente realmente deve blindando os valores numéricos
+              
               const valorDevido = converterValor(pedido.fiado) > 0 ? converterValor(pedido.fiado) : converterValor(pedido.total);
               const ehPagamentoParcial = converterValor(pedido.fiado) > 0 && converterValor(pedido.fiado) < converterValor(pedido.total);
 
@@ -264,10 +264,10 @@ const Pedidos = () => {
             setIsModalOpen(false);
             setPedidoSelecionado(null);
           }}
-          // MANDA PARA O MODAL APENAS O QUE FALTA PAGAR!
+          
           valorTotal={(converterValor(pedidoSelecionado.fiado) > 0 ? converterValor(pedidoSelecionado.fiado) : converterValor(pedidoSelecionado.total)).toFixed(2)}
           onConfirm={finalizarBaixa}
-          esconderPagarDepois={false} // PERMITE que o modal aceite pagamentos parciais de novo, se necessário!
+          esconderPagarDepois={false} 
         />
       )}
     </div>

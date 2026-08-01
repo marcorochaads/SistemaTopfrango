@@ -118,7 +118,7 @@ const Rotas = () => {
       const response = await fetch('http://localhost:5000/api/vendas');
       const dados = await response.json();
       
-      // Blindagem contra variação de letras maiúsculas/minúsculas no banco
+     
       setPedidosPendentes(dados.filter(p => p.status && p.status.toLowerCase() === 'pendente'));
       setPedidosEmRota(dados.filter(p => p.status && p.status.toLowerCase() === 'em rota'));
     } catch (error) {
@@ -183,7 +183,7 @@ const Rotas = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          ...pedidoSelecionado, // <-- CORREÇÃO: Mantém nome, total e produtos
+          ...pedidoSelecionado, 
           status: 'Em Rota', 
           endereco: endereco || 'Destino via Mapa', 
           telefone: telefoneLimpo, 
@@ -227,7 +227,7 @@ const Rotas = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          ...pedidoSelecionado, // <-- CORREÇÃO: Mantém nome, total e produtos
+          ...pedidoSelecionado, 
           status: 'Pago', 
           pagamento: metodoPagamento,
           dinheiro: valorDinheiro,

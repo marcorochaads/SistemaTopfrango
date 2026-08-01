@@ -73,7 +73,7 @@ const Estoque = () => {
     }
 
     const numCompra = parseDinheiro(valorCompra);
-    const numQtd = parseQuantidade(quantidade); // Correção de segurança para decimais
+    const numQtd = parseQuantidade(quantidade);
     const numVenda = parseDinheiro(valorVenda);
     const numKG = parseDinheiro(valorKG);
 
@@ -119,7 +119,7 @@ const Estoque = () => {
     }
 
     const novoProduto = {
-      nome: nomeTratado, // Envia o nome sem os espaços inúteis
+      nome: nomeTratado, 
       qtd: numQtd,
       vCompra: isCompraLote ? (numCompra / numQtd) : numCompra,
       vVenda: isKG ? 0 : numVenda,
@@ -138,7 +138,7 @@ const Estoque = () => {
       if (res.ok) {
         alert("Produto/Lote cadastrado com sucesso!");
         carregarProdutos();
-        // Reset completo (incluindo estados dos botões)
+        
         setNome(''); setValorCompra(''); setValorVenda(''); setQuantidade(''); setValorKG('');
         setIsCompraLote(false); 
         setIsKG(false); 
@@ -169,7 +169,7 @@ const Estoque = () => {
   };
 
   const salvarEdicao = async () => {
-    const nomeTratado = prodEdit.nome.trim(); // Limpa espaços no modo de edição
+    const nomeTratado = prodEdit.nome.trim(); 
 
     if (!nomeTratado || prodEdit.qtd === '' || prodEdit.vCompra === '') {
       alert("Preencha os campos obrigatórios para editar!");
@@ -177,7 +177,7 @@ const Estoque = () => {
     }
 
     const numCompra = parseDinheiro(prodEdit.vCompra);
-    const numQtd = parseQuantidade(prodEdit.qtd); // Correção de segurança para edição
+    const numQtd = parseQuantidade(prodEdit.qtd); 
     const numVenda = parseDinheiro(prodEdit.vVenda);
     const numKG = parseDinheiro(prodEdit.vKG);
 
@@ -210,7 +210,7 @@ const Estoque = () => {
 
     const produtoAtualizado = {
       ...prodEdit,
-      nome: nomeTratado, // Envia o nome sem os espaços inúteis
+      nome: nomeTratado, 
       qtd: numQtd,
       vCompra: numCompra, 
       vVenda: prodEdit.unidade === 'un' ? numVenda : 0,

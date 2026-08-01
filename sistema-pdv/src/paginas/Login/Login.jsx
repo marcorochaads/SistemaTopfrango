@@ -20,7 +20,7 @@ const Login = ({ aoLogar }) => {
 
       if (resposta.ok) {
         const dadosUsuario = await resposta.json();
-        aoLogar(dadosUsuario); // Envia os dados (nome, nivel, id) para o App.js
+        aoLogar(dadosUsuario); 
       } else {
         const erro = await resposta.json();
         alert(erro.error || "Usuário ou senha incorretos!");
@@ -33,14 +33,14 @@ const Login = ({ aoLogar }) => {
     }
   };
 
-  // NOVA FUNÇÃO: Fechar o sistema
+  
   const handleFecharSistema = () => {
     const encerrar = window.confirm("Deseja realmente fechar o sistema TopFrangos?");
     if (encerrar) {
-      // Tenta fechar a janela do navegador nativamente
+      
       window.close();
       
-      // Fallback: caso o navegador bloqueie o window.close(), ele limpa a tela para branco
+      
       window.location.href = "about:blank";
     }
   };
@@ -88,7 +88,7 @@ const Login = ({ aoLogar }) => {
           </button>
         </form>
         
-        {/* NOVO BOTÃO DE FECHAR SISTEMA */}
+        
         <div className="login-acoes-extras">
           <button type="button" className="btn-fechar-app" onClick={handleFecharSistema}>
             Fechar Sistema

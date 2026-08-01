@@ -21,10 +21,10 @@
   animation: modalEntrada 0.3s ease-out;
 }
 
-/* --- NOVO: ESTILOS DO CABEÇALHO E BOTÃO DE FECHAR --- */
+
 .modal-header {
   display: flex;
-  justify-content: space-between; /* Joga o título pra esquerda e o X pra direita */
+  justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
   padding-bottom: 10px;
@@ -51,7 +51,7 @@
 .btn-fechar:hover {
   color: #D32F2F;
 }
-/* ---------------------------------------------------- */
+
 
 @keyframes modalEntrada {
   from { opacity: 0; transform: translateY(-20px); }
@@ -77,7 +77,7 @@
 
 .valor-destaque strong {
   font-size: 1.8rem;
-  color: #D32F2F; /* Vermelho TopFrango */
+  color: #D32F2F; 
 }
 
 /* --- OPÇÕES DE PAGAMENTO --- */
@@ -168,7 +168,7 @@
   color: #333;
 }
 
-/* Fica verdinho quando tem troco para dar */
+
 .display-troco.tem-troco {
   background: #e8f5e9;
   border-color: #4caf50;
