@@ -116,9 +116,11 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
     const valDinheiro = parseDinheiro(valoresMultiplos.Dinheiro);
     const valPix = parseDinheiro(valoresMultiplos.PIX);
     const valCartao = parseDinheiro(valoresMultiplos.Cartao);
+    const valFiado = parseDinheiro(valoresMultiplos.Fiado); // <--- PEGANDO O FIADO AQUI
 
     if (valDinheiro > 0) pagamentosEfetuados.dinheiro = valDinheiro;
     if (valPix > 0) pagamentosEfetuados.pix = valPix;
+    if (valFiado > 0) pagamentosEfetuados.fiado = valFiado; // <--- ENVIANDO O FIADO AQUI
     
     if (valCartao > 0) {
       const taxaPercentual = taxasCartao[modalidadeCartaoMultiplo] || 0;
@@ -141,7 +143,7 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
     
     pagamentosEfetuados.valorPago = valDinheiro + valPix + valCartao;
 
-    const temFiado = parseDinheiro(valoresMultiplos.Fiado) > 0;
+    const temFiado = valFiado > 0;
     if (temFiado) {
       const numeroLimpo = telefone.replace(/\D/g, '');
       if (numeroLimpo.length < 10 && !esconderPagarDepois) {

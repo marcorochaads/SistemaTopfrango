@@ -64,7 +64,13 @@ const Pedidos = () => {
     const novoCartao = dadosAdicionais.cartao !== undefined ? converterValor(dadosAdicionais.cartao) : (metodoTratado.includes('cart') ? valorPagoNestaRodada : 0);
     const novoDinheiro = dadosAdicionais.dinheiro !== undefined ? converterValor(dadosAdicionais.dinheiro) : (metodoTratado === 'dinheiro' ? valorPagoNestaRodada : 0);
 
-    // 6. Captura a modalidade e parcelas (Essencial para o backend calcular a taxa corretamente)
+    // 6. Captura se sobrou valor no Fiado caso seja feito um pagamento parcial
+    const novoFiado = dadosAdicionais.fiado !== undefined ? converterValor(dadosAdicionais.fiado) : 0;
+
+    // 7. Se ainda sobrou fiado a pagar, o status se mantém 'Pendente', senão muda para 'Pago'
+    const novoStatus = novoFiado > 0 ? 'Pendente' : 'Pago';
+
+    // 8. Captura a modalidade e parcelas
     const modalidadeCartaoSalvar = dadosAdicionais.modalidadeCartao || pedidoSelecionado.modalidade_cartao || null;
     const parcelasCartaoSalvar = dadosAdicionais.parcelasCartao || pedidoSelecionado.parcelas_cartao || 1;
 
@@ -73,9 +79,9 @@ const Pedidos = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: 'Pago', 
+          status: novoStatus, // Status dinâmico
           pagamento: metodoPagamentoReal, 
-          telefone: pedidoSelecionado.telefone || pedidoSelecionado.telefone_cliente,
+          telefone: dadosAdicionais.telefone || pedidoSelecionado.telefone || pedidoSelecionado.telefone_cliente,
           endereco: pedidoSelecionado.endereco,
           lat: pedidoSelecionado.lat,
           lng: pedidoSelecionado.lng,
@@ -83,8 +89,9 @@ const Pedidos = () => {
           pix: pixAntigo + novoPix,
           cartao: cartaoAntigo + novoCartao,
           modalidade_cartao: modalidadeCartaoSalvar,
-          parcelas_cartao: parcelasCartaoSalvar, // <--- Enviando parcelas para cálculo de taxa
-          dinheiro: dinheiroAntigo + novoDinheiro
+          parcelas_cartao: parcelasCartaoSalvar,
+          dinheiro: dinheiroAntigo + novoDinheiro,
+          fiado: novoFiado
         })
       });
 

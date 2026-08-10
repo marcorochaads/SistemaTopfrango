@@ -170,14 +170,25 @@ const Caixa = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ valor, data: new Date().toLocaleString('pt-BR') })
-        });
-        if (response.ok) {
-          alert("Sangria gravada!");
-          setValorSangria('');
-          setIsModalOpen(false);
-          carregarDados();
+        }); 
+
+        // 🚨 ESSA É A PARTE MAIS IMPORTANTE: VAI TE MOSTRAR O ERRO NA TELA!
+        if (!response.ok) {
+          const erroServidor = await response.text();
+          alert(`ERRO NA SANGRIA!\nStatus: ${response.status}\nDetalhe: ${erroServidor}`);
+          return; // Para a função aqui e não fecha o modal
         }
-      } catch (error) { alert("Erro ao gravar sangria."); }
+
+        alert("Sangria gravada!");
+        setValorSangria('');
+        setIsModalOpen(false);
+        carregarDados();
+        
+      } catch (error) { 
+        alert(`Erro de conexão ao gravar sangria: ${error.message}`); 
+      }
+    } else {
+      alert("Digite um valor maior que zero.");
     }
   };
 

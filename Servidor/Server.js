@@ -549,7 +549,7 @@ app.post('/api/sangrias', async (req, res) => {
     const motivo_seguro = motivo || "Retirada de Caixa"; 
 
     try {
-        await db.run('INSERT INTO sangrias (usuario_id, valor, motivo, data) VALUES (?, ?, ?, ?)', [usuario_id || 1, valor, motivo_seguro, data_sangria]);
+        await db.run('INSERT INTO sangrias (usuario_id, valor, data) VALUES (?, ?, ?)', [usuario_id || 1, valor, data_sangria]);
         res.status(201).json({ message: "Sangria salva!" });
     } catch (e) { res.status(500).json({ error: e.message }); }
 });
