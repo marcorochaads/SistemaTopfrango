@@ -18,7 +18,6 @@
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-/* Espaço reservado para o menu flutuante lateral */
 .header-titulo-resultados {
   margin-left: 60px;
   display: flex;
@@ -35,16 +34,13 @@
   padding: 30px;
   display: flex;
   flex-direction: column;
-  gap: 20px; /* ALINHAMENTO: gap principal igualado para 20px */
+  gap: 20px;
   overflow-y: auto;
 }
 
-/* =========================================
-   CORREÇÃO DO GRID SUPERIOR
-   ========================================= */
 .grid-resumo {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Força 3 colunas exatas */
+  grid-template-columns: repeat(3, 1fr);
   gap: 20px;
 }
 
@@ -71,26 +67,23 @@
 .resumo-texto span { color: #888; font-size: 0.9rem; font-weight: bold; }
 .resumo-texto h3 { margin: 0; font-size: 1.5rem; color: #333; }
 
-/* =========================================
-   CORREÇÃO DO CONTEÚDO INFERIOR
-   ========================================= */
 .conteudo-inferior {
   display: grid;
-  grid-template-columns: repeat(3, 1fr); /* Mesma base exata de 3 colunas de cima */
-  gap: 20px; /* Mesmo gap de cima para encaixe perfeito */
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
 }
 
 .card-grafico {
-  grid-column: span 2; /* Gráfico ocupa exatamente 2 colunas */
+  grid-column: span 2;
   background: white;
   padding: 25px;
   border-radius: 12px;
   box-shadow: 0 4px 15px rgba(0,0,0,0.05);
-  min-width: 0; /* Segurança extra: impede o SVG do Recharts de estourar a div */
+  min-width: 0;
 }
 
 .card-detalhes {
-  grid-column: span 1; /* Detalhes ocupa exatamente 1 coluna */
+  grid-column: span 1;
   background: white;
   padding: 25px;
   border-radius: 12px;
@@ -158,7 +151,6 @@
   font-style: italic;
 }
 
-/* Controles de Filtro no Topo */
 .controles-filtro {
   display: flex;
   align-items: center;
@@ -180,7 +172,6 @@
   border-color: #D32F2F;
 }
 
-/* Tabela de Detalhamento de Vendas */
 .card-lista-vendas {
   background: white;
   padding: 25px;

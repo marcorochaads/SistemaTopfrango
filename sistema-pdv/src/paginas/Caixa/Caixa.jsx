@@ -22,23 +22,19 @@ const Caixa = () => {
 
   const dataHoje = new Date().toLocaleDateString('pt-BR');
 
-  // --- FUNÇÕES DE FORMATAÇÃO E MÁSCARAS ---
   const formatarValorBR = (valor) => {
     return Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const aplicarMascaraDinheiro = (valor) => {
-    let v = String(valor).replace(/\D/g, ''); 
+    const v = String(valor).replace(/\D/g, ''); 
     if (v === '') return '';
-    v = (Number(v) / 100).toFixed(2); 
-    v = v.replace('.', ','); 
-    v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.'); 
-    return v;
+    return (Number(v) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const parseDinheiro = (str) => {
     if (!str) return 0;
-    return parseFloat(String(str).replace(/\./g, '').replace(',', '.'));
+    return Number.parseFloat(String(str).replaceAll('.', '').replace(',', '.'));
   };
 
   const carregarDados = async () => {
@@ -67,18 +63,14 @@ const Caixa = () => {
     return dataApenas === dataHoje;
   };
 
-  // Filtros de Hoje
   const vendasHoje = vendas.filter(v => isHoje(v.data));
   const sangriasHoje = sangrias.filter(s => isHoje(s.data));
   const batimentosHoje = batimentos.filter(b => isHoje(b.data)); 
   const aberturaHoje = aberturas.find(a => isHoje(a.data));
 
   const caixaAberto = !!aberturaHoje;
-  const valorInicial = aberturaHoje ? parseFloat(aberturaHoje.valor) : 0;
+  const valorInicial = aberturaHoje ? Number.parseFloat(aberturaHoje.valor) : 0;
 
-  // =========================================================================
-  // CÁLCULOS BLINDADOS (Lê de todas as vendas, até as pendentes/múltiplas)
-  // =========================================================================
   
   const totalDinheiro = vendasHoje.reduce((acc, v) => {
     let valor = Number(v.dinheiro) || 0;
@@ -104,22 +96,18 @@ const Caixa = () => {
     return acc + valor;
   }, 0);
 
-  // =========================================================================
-  // NOVO CÁLCULO DE CARTÃO (BRUTO, LÍQUIDO, TAXAS E MODALIDADES)
-  // =========================================================================
   const totaisCartao = vendasHoje.reduce((acc, v) => {
     let liquido = Number(v.cartao) || 0;
     let taxa = Number(v.taxa_cartao) || 0;
-    let bruto = liquido + taxa; // Reconstrói o valor que o cliente pagou na máquina
+    let bruto = liquido + taxa;
 
-    // Verificação de compatibilidade com pedidos antigos (onde a soma das divisões era 0)
     let somaDivisoes = (Number(v.pix) || 0) + (Number(v.dinheiro) || 0) + liquido + (Number(v.fiado) || 0);
     const pag = v.pagamento ? v.pagamento.toLowerCase().trim() : '';
     const status = v.status ? v.status.toLowerCase().trim() : '';
     
     if (somaDivisoes === 0 && (pag === 'cartão' || pag === 'cartao') && status === 'pago') {
         bruto = Number(v.total) || 0;
-        liquido = bruto; // Vendas antigas não possuíam taxa registrada
+        liquido = bruto;
         taxa = 0;
     }
 
@@ -127,7 +115,6 @@ const Caixa = () => {
     acc.liquido += liquido;
     acc.taxas += taxa;
 
-    // Subdivisões por modalidade corrigida (remove acentos para garantir a leitura correta)
     const mod = v.modalidade_cartao ? v.modalidade_cartao.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim() : '';
     if (mod.includes('credito')) acc.credito += bruto;
     if (mod.includes('debito')) acc.debito += bruto;
@@ -137,7 +124,6 @@ const Caixa = () => {
 
   const totalSangriasHoje = sangriasHoje.reduce((acc, s) => acc + Number(s.valor || 0), 0);
   
-  // LOGICA: Inicial + Dinheiro que entrou - O que saiu
   const saldoSistema = valorInicial + totalDinheiro - totalSangriasHoje; 
   
   const valorFisicoNum = parseDinheiro(valorFisico);
@@ -158,7 +144,10 @@ const Caixa = () => {
           setValorAbertura(''); 
           carregarDados();
         }
-      } catch (error) { alert("Erro ao abrir caixa."); }
+      } catch (error) {
+        console.error('Erro ao abrir caixa:', error);
+        alert("Erro ao abrir caixa.");
+      }
     }
   };
 
@@ -172,11 +161,10 @@ const Caixa = () => {
           body: JSON.stringify({ valor, data: new Date().toLocaleString('pt-BR') })
         }); 
 
-        // 🚨 ESSA É A PARTE MAIS IMPORTANTE: VAI TE MOSTRAR O ERRO NA TELA!
         if (!response.ok) {
           const erroServidor = await response.text();
           alert(`ERRO NA SANGRIA!\nStatus: ${response.status}\nDetalhe: ${erroServidor}`);
-          return; // Para a função aqui e não fecha o modal
+          return; 
         }
 
         alert("Sangria gravada!");
@@ -193,7 +181,7 @@ const Caixa = () => {
   };
 
   const salvarBatimento = async () => {
-    if (!valorFisicoNum && valorFisicoNum !== 0) return alert("Insira o valor contado na gaveta!");
+    if (!valorFisico) return alert("Insira o valor contado na gaveta!");
 
     const turnoJaFechado = batimentosHoje.some(b => b.turno === turno);
     if (turnoJaFechado) {
@@ -206,7 +194,7 @@ const Caixa = () => {
       valor_sistema: saldoSistema,
       valor_fisico: valorFisicoNum, 
       pix: totalPix,
-      cartao: totaisCartao.bruto, // Salvamos o bruto no histórico para facilitar conferência com a maquininha
+      cartao: totaisCartao.bruto,
       diferenca: diferenca,
       status: diferenca === 0 ? 'Bateu' : 'Quebra'
     };
@@ -223,8 +211,18 @@ const Caixa = () => {
         setValorFisico('');
         carregarDados();
       }
-    } catch (error) { alert("Erro ao salvar batimento."); }
+    } catch (error) {
+      console.error('Erro ao salvar batimento:', error);
+      alert("Erro ao salvar batimento.");
+    }
   };
+
+  let corDiferenca = 'inherit';
+  if (diferenca < 0) {
+    corDiferenca = '#d32f2f';
+  } else if (diferenca === 0) {
+    corDiferenca = '#388e3c';
+  }
 
   return (
     <div className="container-caixa">
@@ -235,11 +233,11 @@ const Caixa = () => {
         <div className="data-caixa-atual"><FaCalendarDay /> <strong>{dataHoje}</strong></div>
         <div className="botoes-caixa">
           {!caixaAberto ? (
-             <button className="btn-abertura" onClick={() => setIsAberturaOpen(true)}><FaPlusCircle /> Abrir Caixa</button>
+             <button type="button" className="btn-abertura" onClick={() => setIsAberturaOpen(true)}><FaPlusCircle /> Abrir Caixa</button>
           ) : (
             <>
-              <button className="btn-sangria" onClick={() => setIsModalOpen(true)}><FaMinusCircle /> Sangria</button>
-              <button className="btn-batimento" onClick={() => setIsBatimentoOpen(true)}><FaCheckDouble /> Fechar Turno</button>
+              <button type="button" className="btn-sangria" onClick={() => setIsModalOpen(true)}><FaMinusCircle /> Sangria</button>
+              <button type="button" className="btn-batimento" onClick={() => setIsBatimentoOpen(true)}><FaCheckDouble /> Fechar Turno</button>
             </>
           )}
         </div>
@@ -278,7 +276,6 @@ const Caixa = () => {
                 <span>R$ {formatarValorBR(totalPix)}</span>
               </div>
               
-              {/* CARTÃO COM SUBDIVISÃO DE CRÉDITO, DÉBITO E TAXAS */}
               <div className="item-valor outros-meios" style={{ alignItems: 'flex-start' }}>
                 <span>Total Cartão (Bruto)</span>
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -304,7 +301,6 @@ const Caixa = () => {
                   </div>
                 </>
               )}
-              {/* FIM CARTÃO */}
               
             </div>
           </div>
@@ -323,16 +319,22 @@ const Caixa = () => {
               </thead>
               <tbody>
                 {batimentos.length === 0 ? <tr><td colSpan="5">Nenhum batimento registrado</td></tr> : 
-                  batimentos.slice(0, 10).map((b, i) => {
-                    const diferencaNumero = parseFloat(b.diferenca);
+                  batimentos.slice(0, 10).map((b) => {
+                    const diferencaNumero = Number.parseFloat(b.diferenca);
+                    let corDiferencaHistorico = 'inherit';
+                    if (diferencaNumero < 0) {
+                      corDiferencaHistorico = '#d32f2f';
+                    } else if (diferencaNumero === 0) {
+                      corDiferencaHistorico = '#388e3c';
+                    }
                     return (
-                      <tr key={i}>
+                      <tr key={b.id ?? `${b.data}-${b.turno}`}>
                         <td>{b.data.split(' ')[0]}</td>
                         <td>{b.turno}</td>
                         <td>R$ {formatarValorBR(b.valor_sistema)}</td>
                         <td>R$ {formatarValorBR(b.valor_fisico)}</td>
                         <td style={{ 
-                          color: diferencaNumero < 0 ? '#d32f2f' : (diferencaNumero === 0 ? '#388e3c' : 'inherit'),
+                          color: corDiferencaHistorico,
                           fontWeight: 'bold'
                         }}>
                           R$ {formatarValorBR(diferencaNumero)}
@@ -347,7 +349,6 @@ const Caixa = () => {
         </div>
       </main>
 
-      {/* MODAL ABERTURA */}
       {isAberturaOpen && (
         <div className="modal-overlay">
           <div className="modal-caixa">
@@ -361,14 +362,13 @@ const Caixa = () => {
               autoFocus 
             />
             <div className="modal-acoes">
-              <button className="btn-cancelar" onClick={() => setIsAberturaOpen(false)}>Cancelar</button>
-              <button className="btn-confirmar" onClick={confirmarAbertura}>Iniciar Caixa</button>
+              <button type="button" className="btn-cancelar" onClick={() => setIsAberturaOpen(false)}>Cancelar</button>
+              <button type="button" className="btn-confirmar" onClick={confirmarAbertura}>Iniciar Caixa</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL SANGRIA */}
       {isModalOpen && (
         <div className="modal-overlay">
           <div className="modal-caixa">
@@ -381,14 +381,13 @@ const Caixa = () => {
               autoFocus 
             />
             <div className="modal-acoes">
-              <button className="btn-cancelar" onClick={() => setIsModalOpen(false)}>Cancelar</button>
-              <button className="btn-confirmar" onClick={confirmarSangria}>Confirmar</button>
+              <button type="button" className="btn-cancelar" onClick={() => setIsModalOpen(false)}>Cancelar</button>
+              <button type="button" className="btn-confirmar" onClick={confirmarSangria}>Confirmar</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL FECHAMENTO */}
       {isBatimentoOpen && (
         <div className="modal-overlay">
           <div className="modal-caixa batimento">
@@ -410,7 +409,7 @@ const Caixa = () => {
               <div className="info-linha">
                 <span>Diferença:</span> 
                 <strong style={{ 
-                  color: diferenca < 0 ? '#d32f2f' : (diferenca === 0 ? '#388e3c' : 'inherit'),
+                  color: corDiferenca,
                   fontSize: '1.2em'
                 }}>
                   R$ {formatarValorBR(diferenca)}
@@ -419,8 +418,8 @@ const Caixa = () => {
             </div>
             
             <div className="modal-acoes">
-              <button className="btn-cancelar" onClick={() => setIsBatimentoOpen(false)}>Sair</button>
-              <button className="btn-confirmar" onClick={salvarBatimento}>Gravar Fechamento</button>
+              <button type="button" className="btn-cancelar" onClick={() => setIsBatimentoOpen(false)}>Sair</button>
+              <button type="button" className="btn-confirmar" onClick={salvarBatimento}>Gravar Fechamento</button>
             </div>
           </div>
         </div>

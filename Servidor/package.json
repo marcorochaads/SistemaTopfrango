@@ -5,6 +5,7 @@
   "bin": "Server.js",
   "scripts": {
     "test": "jest --forceExit",
+    "test:coverage": "jest --coverage --forceExit",
     "start": "node Server.js",
     "compilar": "pkg . --targets node18-win-x64 --output topfrango.exe"
   },
@@ -19,6 +20,7 @@
   "description": "",
   "dependencies": {
     "@sentry/node": "^10.51.0",
+    "amqplib": "^2.0.1",
     "cors": "^2.8.5",
     "express": "^5.2.1",
     "node-cron": "^4.2.1",
@@ -26,7 +28,7 @@
     "sqlite3": "^5.1.7"
   },
   "devDependencies": {
-    "jest": "^30.3.0",
+    "jest": "^30.4.2",
     "supertest": "^7.2.2"
   }
 }

@@ -25,8 +25,8 @@ const Login = ({ aoLogar }) => {
         const erro = await resposta.json();
         alert(erro.error || "Usuário ou senha incorretos!");
       }
-    } catch (erro) {
-      console.error("Erro ao logar:", erro);
+    } catch (error_) {
+      console.error("Erro ao logar:", error_);
       alert("Erro ao conectar com o servidor.");
     } finally {
       setCarregando(false);

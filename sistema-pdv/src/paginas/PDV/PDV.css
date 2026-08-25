@@ -19,7 +19,6 @@
   overflow: hidden;
 }
 
-/* --- SIDEBAR --- */
 .sidebar-menu {
   width: 280px;
   background-color: var(--cinza-fundo-sidebar);
@@ -33,16 +32,14 @@
   overflow-x: hidden;
 }
 
-/* Ocultar barra de rolagem para um visual mais limpo */
 .sidebar-menu::-webkit-scrollbar {
   display: none;
 }
 .sidebar-menu {
-  -ms-overflow-style: none;  /* IE and Edge */
-  scrollbar-width: none;  /* Firefox */
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
-/* Perfil */
 .perfil-usuario {
   display: flex;
   flex-direction: column;
@@ -73,7 +70,6 @@
   font-weight: bold;
 }
 
-/* Botões */
 .lista-botoes {
   display: flex;
   flex-direction: column;
@@ -100,7 +96,6 @@
   border-left: 4px solid transparent;
 }
 
-/* Botão de Destaque (Vender) */
 .btn-menu.destaque {
   border-left: 4px solid var(--vermelho-topfrango);
 }
@@ -119,7 +114,6 @@
   color: var(--vermelho-topfrango);
 }
 
-/* --- BOTÃO DE SAIR --- */
 .btn-sair {
   margin-top: 20px; 
   border-left: 4px solid var(--vermelho-topfrango);
@@ -140,7 +134,6 @@
   color: #999;
 }
 
-/* --- NOVA ÁREA PRINCIPAL (DASHBOARD) --- */
 .area-principal {
   flex: 1;
   background: #f4f6f8; 
@@ -168,10 +161,9 @@
   font-size: 1.1rem;
 }
 
-/* --- CARDS DE ESTATÍSTICA --- */
 .cards-resumo {
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* Cria 2 colunas, deixando em formato 2x2 */
+  grid-template-columns: repeat(2, 1fr);
   gap: 20px;
 }
 
@@ -196,7 +188,7 @@
   justify-content: center;
   align-items: center;
   font-size: 1.8rem;
-  flex-shrink: 0; /* Impede que o ícone amasse se o número for muito grande */
+  flex-shrink: 0;
 }
 
 .card-icone.verde {
@@ -211,7 +203,7 @@
 
 .card-info {
   flex: 1;
-  overflow: hidden; /* Evita que números absurdamente grandes vazem do card */
+  overflow: hidden;
 }
 
 .card-info span {
@@ -227,10 +219,9 @@
   color: var(--texto-escuro);
   white-space: nowrap;
   overflow: hidden;
-  text-overflow: ellipsis; /* Coloca '...' se o número for maior que a tela */
+  text-overflow: ellipsis;
 }
 
-/* --- PAINÉIS INFERIORES --- */
 .paineis-inferiores {
   display: flex;
   gap: 20px;
@@ -259,7 +250,6 @@
   gap: 10px;
 }
 
-/* Painel Mais Vendidos */
 .produtos-top {
   flex: 1.5; 
 }

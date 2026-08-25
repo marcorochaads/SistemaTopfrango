@@ -18,7 +18,6 @@
   overflow: hidden;
 }
 
-/* --- LADO ESQUERDO (CATÁLOGO) --- */
 .painel-catalogo {
   flex: 2;
   padding: 20px;
@@ -26,7 +25,6 @@
   flex-direction: column;
 }
 
-/* Cabeçalho de Produtos */
 .header-produtos {
   margin-bottom: 20px;
   display: flex;
@@ -48,7 +46,6 @@
   margin: 0;
 }
 
-/* Grid de Produtos */
 .grid-produtos {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
@@ -106,7 +103,6 @@
   font-size: 1.1rem;
 }
 
-/* --- LADO DIREITO (RESUMO) --- */
 .painel-resumo {
   flex: 1;
   background-color: var(--branco);

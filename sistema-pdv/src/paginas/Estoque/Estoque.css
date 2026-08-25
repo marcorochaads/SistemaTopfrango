@@ -72,7 +72,6 @@ h2 { color: #333; margin-bottom: 20px; border-bottom: 2px solid #f0f0f0; padding
 }
 .campo-form input:focus { border-color: #D32F2F; outline: none; }
 
-/* Switch para KG */
 .checkbox-kg { display: flex; align-items: center; gap: 15px; height: 85px; }
 .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
 .switch input { opacity: 0; width: 0; height: 0; }
@@ -98,7 +97,6 @@ input:checked + .slider:before { transform: translateX(26px); }
 }
 .btn-adicionar:hover { background-color: #b71c1c; }
 
-/* Tabela */
 .tabela-container { overflow-x: auto; }
 .tabela-produtos { width: 100%; border-collapse: collapse; }
 .tabela-produtos th, .tabela-produtos td { text-align: left; padding: 15px; border-bottom: 1px solid #eee; }
@@ -130,7 +128,6 @@ input:checked + .slider:before { transform: translateX(26px); }
 .btn-acao-prod.remover { color: #D32F2F; background-color: #FFEBEE; }
 .btn-acao-prod.remover:hover { background-color: #D32F2F; color: white; }
 
-/* Modal Overlay (Fundo Escuro) */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -145,7 +142,6 @@ input:checked + .slider:before { transform: translateX(26px); }
   backdrop-filter: blur(3px);
 }
 
-/* Janela do Modal */
 .modal-edicao {
   background: white;
   padding: 30px;
@@ -168,7 +164,6 @@ input:checked + .slider:before { transform: translateX(26px); }
   gap: 15px;
 }
 
-/* Botões do Modal */
 .modal-acoes {
   display: flex;
   justify-content: flex-end;

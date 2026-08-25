@@ -92,9 +92,9 @@ function App() {
     return telasPermitidas.includes(item.id);
   });
 
-  let conteudo;
+   let conteudo;
   if (telaAtual === 'login') {
-    return <Login aoLogar={aoLogarSucesso} />; 
+    conteudo = <Login aoLogar={aoLogarSucesso} />;
   } else if (telaAtual === 'menu') {
     conteudo = (
       <PDV 
@@ -142,36 +142,54 @@ function App() {
           {erroConexao && <AvisoServidor aoTentarNovamente={() => window.location.reload()} />}
 
           {mostrarHamburguer && (
-            <button className="btn-hamburguer-flutuante" onClick={() => setMenuAberto(true)}>
+            <button type="button" className="btn-hamburguer-flutuante" onClick={() => setMenuAberto(true)}>
               <FaBars />
             </button>
           )}
 
-          {menuAberto && <div className="overlay-menu" onClick={() => setMenuAberto(false)}></div>}
+          {menuAberto && (
+            <button
+              type="button"
+              className="overlay-menu" 
+              onClick={() => setMenuAberto(false)}
+              aria-label="Fechar menu"
+            ></button>
+          )}
 
           <nav className={`menu-lateral ${menuAberto ? 'aberto' : ''}`}>
             <div className="cabecalho-menu">
               <h3>Menu Rápido</h3>
-              <button className="btn-fechar-menu" onClick={() => setMenuAberto(false)}><FaTimes /></button>
+              <button type="button" className="btn-fechar-menu" onClick={() => setMenuAberto(false)}>
+                <FaTimes />
+              </button>
             </div>
             <div className="lista-menu">
               {itensMenuFiltrados.map((item) => (
-                <div key={item.id} className={`menu-card ${telaAtual === item.id ? 'ativo' : ''}`}
-                  onClick={() => { setTelaAtual(item.id); setMenuAberto(false); }}>
+                <button
+                  type="button"
+                  key={item.id} 
+                  className={`menu-card ${telaAtual === item.id ? 'ativo' : ''}`}
+                  onClick={() => { setTelaAtual(item.id); setMenuAberto(false); }}
+                >
                   <div className="menu-textos">
                     <span className="menu-titulo">{item.titulo}</span>
                   </div>
                   <div className="menu-icone">{item.icone}</div>
-                </div>
+                </button>
               ))}
 
               {/* INCLUSÃO: Botão de Sair fixado no fim do Menu Lateral para o caso de o usuário estar em outra tela */}
-              <div className="menu-card btn-sair-menu-lateral" onClick={handleBotaoSair} style={{ marginTop: '20px', backgroundColor: 'rgba(211, 47, 47, 0.1)', color: '#D32F2F' }}>
+              <button
+                type="button"
+                className="menu-card btn-sair-menu-lateral" 
+                onClick={handleBotaoSair} 
+                style={{ marginTop: '20px', backgroundColor: 'rgba(211, 47, 47, 0.1)', color: '#D32F2F' }}
+              >
                 <div className="menu-textos">
                   <span className="menu-titulo" style={{ fontWeight: 'bold' }}>Sair</span>
                 </div>
                 <div className="menu-icone"><FaSignOutAlt size={20} /></div>
-              </div>
+              </button>
             </div>
           </nav>
 

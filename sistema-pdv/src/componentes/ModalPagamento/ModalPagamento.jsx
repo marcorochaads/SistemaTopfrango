@@ -57,15 +57,14 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
   const aplicarMascaraDinheiro = (valor) => {
     let v = String(valor).replace(/\D/g, ''); 
     if (v === '') return '';
-    v = (Number(v) / 100).toFixed(2); 
-    v = v.replace('.', ','); 
-    v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.'); 
-    return v;
+    // Resolvido o ReDoS: substituída a Regex complexa pelo nativo toLocaleString do JS
+    return (Number(v) / 100).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const parseDinheiro = (str) => {
     if (!str) return 0;
-    return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+    // Resolvido: replaceAll e Number.parseFloat
+    return Number.parseFloat(String(str).replaceAll('.', '').replace(',', '.'));
   };
 
   const formatarValorBR = (valor) => {
@@ -79,7 +78,7 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
     }));
   };
 
-  const totalNumerico = parseFloat(String(valorTotal).replace(',', '.')) || 0;
+  const totalNumerico = Number.parseFloat(String(valorTotal).replace(',', '.')) || 0;
   
   const recebidoNumerico = parseDinheiro(valorRecebido); 
   let trocoSimples = recebidoNumerico - totalNumerico;
@@ -116,11 +115,11 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
     const valDinheiro = parseDinheiro(valoresMultiplos.Dinheiro);
     const valPix = parseDinheiro(valoresMultiplos.PIX);
     const valCartao = parseDinheiro(valoresMultiplos.Cartao);
-    const valFiado = parseDinheiro(valoresMultiplos.Fiado); // <--- PEGANDO O FIADO AQUI
+    const valFiado = parseDinheiro(valoresMultiplos.Fiado); 
 
     if (valDinheiro > 0) pagamentosEfetuados.dinheiro = valDinheiro;
     if (valPix > 0) pagamentosEfetuados.pix = valPix;
-    if (valFiado > 0) pagamentosEfetuados.fiado = valFiado; // <--- ENVIANDO O FIADO AQUI
+    if (valFiado > 0) pagamentosEfetuados.fiado = valFiado; 
     
     if (valCartao > 0) {
       const taxaPercentual = taxasCartao[modalidadeCartaoMultiplo] || 0;
@@ -128,16 +127,16 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
       const valorTaxa = valCartao * taxaPercentual;
       const valorLiquido = valCartao - valorTaxa;
 
-      pagamentosEfetuados.cartao = parseFloat(valorLiquido.toFixed(2));
-      pagamentosEfetuados.taxa_cartao = parseFloat(valorTaxa.toFixed(2));
+      pagamentosEfetuados.cartao = Number.parseFloat(valorLiquido.toFixed(2));
+      pagamentosEfetuados.taxa_cartao = Number.parseFloat(valorTaxa.toFixed(2));
       
       if (modalidadeCartaoMultiplo === 'debito') {
         pagamentosEfetuados.modalidade_cartao = 'Débito';
         pagamentosEfetuados.parcelas_cartao = 1;
       } else {
         pagamentosEfetuados.modalidade_cartao = 'Crédito';
-        const parcelas = parseInt(modalidadeCartaoMultiplo.replace('credito_', ''), 10);
-        pagamentosEfetuados.parcelas_cartao = isNaN(parcelas) ? 1 : parcelas;
+        const parcelas = Number.parseInt(modalidadeCartaoMultiplo.replace('credito_', ''), 10);
+        pagamentosEfetuados.parcelas_cartao = Number.isNaN(parcelas) ? 1 : parcelas;
       }
     }
     
@@ -156,13 +155,12 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
     onConfirm('Múltiplo', pagamentosEfetuados);
   };
 
-  // Função auxiliar para pagamento integral em cartão
   const confirmarCartaoIntegral = (modalidadeKey, nomeModalidade, parcelas) => {
     const taxa = totalNumerico * taxasCartao[modalidadeKey];
     onConfirm('Cartão', { 
       valorPago: totalNumerico, 
-      cartao: parseFloat((totalNumerico - taxa).toFixed(2)), 
-      taxa_cartao: parseFloat(taxa.toFixed(2)), 
+      cartao: Number.parseFloat((totalNumerico - taxa).toFixed(2)), 
+      taxa_cartao: Number.parseFloat(taxa.toFixed(2)), 
       modalidade_cartao: nomeModalidade, 
       parcelas_cartao: parcelas 
     });
@@ -173,7 +171,7 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
       <div className="modal-pagamento">
         <header className="modal-header">
           <h2>Finalizar Recebimento</h2>
-          <button className="btn-fechar" onClick={onClose}><FaTimes /></button>
+          <button type="button" className="btn-fechar" onClick={onClose}><FaTimes /></button>
         </header>
 
         <div className="valor-destaque">
@@ -181,10 +179,11 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
           <strong>R$ {formatarValorBR(totalNumerico)}</strong>
         </div>
 
-        {modoTroco ? (
+        {modoTroco && (
           <div className="area-calculo-troco">
-            <label>Valor Recebido (Apenas Dinheiro):</label>
+            <label htmlFor="valorRecebidoUnico">Valor Recebido (Apenas Dinheiro):</label>
             <input
+              id="valorRecebidoUnico"
               type="text"
               className="input-troco"
               placeholder="0,00"
@@ -199,10 +198,11 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
             </div>
 
             <div className="botoes-troco">
-              <button className="btn-voltar-troco" onClick={() => setModoTroco(false)}>
+              <button type="button" className="btn-voltar-troco" onClick={() => setModoTroco(false)}>
                 <FaArrowLeft /> Voltar
               </button>
               <button
+                type="button"
                 className="btn-confirmar-troco"
                 onClick={() => {
                   const valorEfetivo = valorRecebido !== '' ? Math.min(recebidoNumerico, totalNumerico) : totalNumerico;
@@ -214,27 +214,27 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
               </button>
             </div>
           </div>
-        )
+        )}
 
-        : modoMultiplo ? (
+        {modoMultiplo && (
           <div className="area-calculo-troco">
             <h4 style={{textAlign: 'center', marginBottom: '5px', color: '#555'}}>Dividir Valores</h4>
             
             <div style={{display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px', maxHeight: '35vh', overflowY: 'auto', paddingRight: '5px'}}>
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <label><FaMoneyBillWave color="#2E7D32"/> Dinheiro:</label>
-                <input type="text" className="input-troco" style={{width: '50%', margin: 0, fontSize: '1rem', padding: '8px'}} placeholder="0,00" value={valoresMultiplos.Dinheiro} onChange={(e) => handleMultiploChange('Dinheiro', e.target.value)} />
+                <label htmlFor="inputMultiploDinheiro"><FaMoneyBillWave color="#2E7D32"/> Dinheiro:</label>
+                <input id="inputMultiploDinheiro" type="text" className="input-troco" style={{width: '50%', margin: 0, fontSize: '1rem', padding: '8px'}} placeholder="0,00" value={valoresMultiplos.Dinheiro} onChange={(e) => handleMultiploChange('Dinheiro', e.target.value)} />
               </div>
               
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <label><FaQrcode color="#10a39b"/> PIX:</label>
-                <input type="text" className="input-troco" style={{width: '50%', margin: 0, fontSize: '1rem', padding: '8px'}} placeholder="0,00" value={valoresMultiplos.PIX} onChange={(e) => handleMultiploChange('PIX', e.target.value)} />
+                <label htmlFor="inputMultiploPix"><FaQrcode color="#10a39b"/> PIX:</label>
+                <input id="inputMultiploPix" type="text" className="input-troco" style={{width: '50%', margin: 0, fontSize: '1rem', padding: '8px'}} placeholder="0,00" value={valoresMultiplos.PIX} onChange={(e) => handleMultiploChange('PIX', e.target.value)} />
               </div>
               
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexDirection: 'column'}}>
                 <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%'}}>
-                  <label><FaCreditCard color="#0277bd"/> Cartão:</label>
-                  <input type="text" className="input-troco" style={{width: '50%', margin: 0, fontSize: '1rem', padding: '8px'}} placeholder="0,00" value={valoresMultiplos.Cartao} onChange={(e) => handleMultiploChange('Cartao', e.target.value)} />
+                  <label htmlFor="inputMultiploCartao"><FaCreditCard color="#0277bd"/> Cartão:</label>
+                  <input id="inputMultiploCartao" type="text" className="input-troco" style={{width: '50%', margin: 0, fontSize: '1rem', padding: '8px'}} placeholder="0,00" value={valoresMultiplos.Cartao} onChange={(e) => handleMultiploChange('Cartao', e.target.value)} />
                 </div>
                 {parseDinheiro(valoresMultiplos.Cartao) > 0 && (
                   <div style={{width: '100%', display: 'flex', justifyContent: 'flex-end', marginTop: '4px'}}>
@@ -243,6 +243,7 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
                       style={{width: '50%', margin: 0, fontSize: '0.85rem', padding: '4px', background: '#f0f8ff'}}
                       value={modalidadeCartaoMultiplo}
                       onChange={(e) => setModalidadeCartaoMultiplo(e.target.value)}
+                      aria-label="Modalidade do cartão"
                     >
                       <option value="debito">Débito</option>
                       <option value="credito_1x">Crédito à Vista</option>
@@ -255,9 +256,10 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
               </div>
               
               <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
-                <label><FaUserClock color="#f57c00"/> Fiado:</label>
+                <label htmlFor="inputMultiploFiado"><FaUserClock color="#f57c00"/> Fiado:</label>
                 <div style={{display: 'flex', gap: '6px', width: '50%', alignItems: 'center'}}>
                   <input 
+                    id="inputMultiploFiado"
                     type="text" 
                     className="input-troco" 
                     style={{width: '100%', margin: 0, fontSize: '1rem', padding: '8px'}} 
@@ -285,10 +287,11 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
 
               {parseDinheiro(valoresMultiplos.Fiado) > 0 && !esconderPagarDepois && (
                 <div style={{ background: '#fff3e0', padding: '10px', borderRadius: '6px', border: '1px solid #ffe0b2', marginTop: '5px' }}>
-                  <label style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem', fontWeight: 'bold', color: '#e65100' }}>
+                  <label htmlFor="telefoneMultiplo" style={{ display: 'block', marginBottom: '5px', fontSize: '0.9rem', fontWeight: 'bold', color: '#e65100' }}>
                     Telefone do Cliente (Obrigatório):
                   </label>
                   <input
+                    id="telefoneMultiplo"
                     type="tel"
                     className="input-troco"
                     style={{ width: '100%', margin: 0, padding: '8px', fontSize: '1rem', background: '#fff' }}
@@ -307,10 +310,11 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
             </div>
 
             <div className="botoes-troco">
-              <button className="btn-voltar-troco" onClick={() => setModoMultiplo(false)}>
+              <button type="button" className="btn-voltar-troco" onClick={() => setModoMultiplo(false)}>
                 <FaArrowLeft /> Voltar
               </button>
               <button
+                type="button"
                 className="btn-confirmar-troco"
                 onClick={confirmarMultiplo}
                 disabled={somaMultiplo < totalNumerico}
@@ -319,32 +323,33 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
               </button>
             </div>
           </div>
-        )
+        )}
 
-        : modoCartao ? (
+        {modoCartao && (
           <div className="area-calculo-troco">
             <h4 style={{textAlign: 'center', marginBottom: '15px', color: '#555'}}>Selecione a Modalidade</h4>
             
             <div className="opcoes-pagamento" style={{ gridTemplateColumns: '1fr', gap: '8px' }}>
-              <button onClick={() => confirmarCartaoIntegral('debito', 'Débito', 1)}>Débito (1,66%)</button>
-              <button onClick={() => confirmarCartaoIntegral('credito_1x', 'Crédito', 1)}>Crédito à Vista (3,95%)</button>
-              <button onClick={() => confirmarCartaoIntegral('credito_2x', 'Crédito', 2)}>Crédito 2x (7,99%)</button>
-              <button onClick={() => confirmarCartaoIntegral('credito_3x', 'Crédito', 3)}>Crédito 3x (8,99%)</button>
-              <button onClick={() => confirmarCartaoIntegral('credito_4x', 'Crédito', 4)}>Crédito 4x (9,99%)</button>
+              <button type="button" onClick={() => confirmarCartaoIntegral('debito', 'Débito', 1)}>Débito (1,66%)</button>
+              <button type="button" onClick={() => confirmarCartaoIntegral('credito_1x', 'Crédito', 1)}>Crédito à Vista (3,95%)</button>
+              <button type="button" onClick={() => confirmarCartaoIntegral('credito_2x', 'Crédito', 2)}>Crédito 2x (7,99%)</button>
+              <button type="button" onClick={() => confirmarCartaoIntegral('credito_3x', 'Crédito', 3)}>Crédito 3x (8,99%)</button>
+              <button type="button" onClick={() => confirmarCartaoIntegral('credito_4x', 'Crédito', 4)}>Crédito 4x (9,99%)</button>
             </div>
 
             <div className="botoes-troco" style={{ marginTop: '15px' }}>
-              <button className="btn-voltar-troco" onClick={() => setModoCartao(false)}>
+              <button type="button" className="btn-voltar-troco" onClick={() => setModoCartao(false)}>
                 <FaArrowLeft /> Voltar
               </button>
             </div>
           </div>
-        )
+        )}
 
-        : modoFiado ? (
+        {modoFiado && (
           <div className="area-calculo-troco">
-            <label>Telefone/WhatsApp do Cliente:</label>
+            <label htmlFor="telefoneUnicoFiado">Telefone/WhatsApp do Cliente:</label>
             <input
+              id="telefoneUnicoFiado"
               type="tel"
               className="input-troco"
               placeholder="(00) 00000-0000"
@@ -355,35 +360,35 @@ const ModalPagamento = ({ isOpen, onClose, valorTotal, onConfirm, esconderPagarD
             />
             <p style={{fontSize: '0.8rem', color: '#666', marginTop: '10px', textAlign: 'center'}}>Apenas números. O formato se ajusta sozinho!</p>
             <div className="botoes-troco">
-              <button className="btn-voltar-troco" onClick={() => setModoFiado(false)}>
+              <button type="button" className="btn-voltar-troco" onClick={() => setModoFiado(false)}>
                 <FaArrowLeft /> Voltar
               </button>
-              <button className="btn-confirmar-troco" onClick={() => onConfirm('Pagar Depois', { telefone })}>
+              <button type="button" className="btn-confirmar-troco" onClick={() => onConfirm('Pagar Depois', { telefone })}>
                 <FaCheck /> Confirmar Fiado
               </button>
             </div>
           </div>
-        ) 
+        )}
         
-        : (
+        {!modoTroco && !modoMultiplo && !modoCartao && !modoFiado && (
           <div className="opcoes-pagamento">
-            <button onClick={() => setModoTroco(true)}>
+            <button type="button" onClick={() => setModoTroco(true)}>
               <FaMoneyBillWave color="#2E7D32" /> Dinheiro
             </button>
-            <button onClick={() => onConfirm('PIX', { valorPago: totalNumerico, pix: totalNumerico })}>
+            <button type="button" onClick={() => onConfirm('PIX', { valorPago: totalNumerico, pix: totalNumerico })}>
               <FaQrcode color="#10a39b" /> PIX
             </button>
             
-            <button onClick={() => setModoCartao(true)}>
+            <button type="button" onClick={() => setModoCartao(true)}>
               <FaCreditCard color="#0277bd" /> Cartão
             </button>
             
-            <button className="btn-pagar-depois" style={{background: '#f8f9fa', color: '#333', border: '1px solid #ccc'}} onClick={() => setModoMultiplo(true)}>
+            <button type="button" className="btn-pagar-depois" style={{background: '#f8f9fa', color: '#333', border: '1px solid #ccc'}} onClick={() => setModoMultiplo(true)}>
               <FaDivide color="#ff9800" /> Pagamento Dividido
             </button>
 
             {!esconderPagarDepois && (
-              <button className="btn-pagar-depois" onClick={() => setModoFiado(true)}>
+              <button type="button" className="btn-pagar-depois" onClick={() => setModoFiado(true)}>
                 <FaUserClock /> Pagar Depois (Fiado)
               </button>
             )}

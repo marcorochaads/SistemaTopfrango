@@ -1,0 +1,6 @@
+projectKey=Sistema-TopFrangos
+serverUrl=http://localhost:9000
+serverVersion=26.8.0.126808
+dashboardUrl=http://localhost:9000/dashboard?id=Sistema-TopFrangos
+ceTaskId=03751e13-c1a6-4a5c-82d5-2c83b0ca878b
+ceTaskUrl=http://localhost:9000/api/ce/task?id=03751e13-c1a6-4a5c-82d5-2c83b0ca878b

@@ -28,7 +28,6 @@
   font-size: 2rem;
 }
 
-/* Área de conteúdo onde ficam os cards */
 .conteudo-cadastro {
   padding: 30px;
   
@@ -42,7 +41,6 @@
   align-items: start;
 }
 
-/* Estilo padrão de Card TopFrango */
 .painel-formulario, 
 .painel-lista {
   background: white;
@@ -62,7 +60,6 @@
   gap: 10px;
 }
 
-/* --- FORMULÁRIO --- */
 .form-cadastro-user {
   display: flex;
   flex-direction: column;
@@ -81,7 +78,6 @@
   border-bottom: 1px solid #f0f0f0;
 }
 
-/* Destacando levemente a área do gerente */
 .bloco-autorizacao {
   background: #fafafa;
   padding: 15px;
@@ -106,7 +102,6 @@
   font-style: italic;
 }
 
-/* Inputs limpos e modernos */
 .input-user {
   padding: 12px 15px;
   border: 1px solid #ddd;
@@ -126,7 +121,6 @@
   box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.1);
 }
 
-/* Botão Vermelho TopFrango */
 .btn-finalizar-cadastro {
   background-color: #D32F2F;
   color: white;
@@ -146,7 +140,6 @@
   box-shadow: 0 4px 10px rgba(211, 47, 47, 0.3);
 }
 
-/* --- TABELA DE USUÁRIOS --- */
 .tabela-container-user {
   max-height: 500px;
   overflow-y: auto;
@@ -190,7 +183,6 @@
   font-style: italic;
 }
 
-/* Badges de Nível */
 .badge-nivel {
   padding: 5px 12px;
   border-radius: 20px;
@@ -209,7 +201,6 @@
   color: #1976d2; 
 } 
 
-/* --- AÇÕES DA TABELA --- */
 .acoes-td {
   display: flex;
   justify-content: center;
@@ -320,7 +311,6 @@
   color: white; 
 }
 
-/* Responsividade */
 @media (max-width: 900px) {
   .grid-cadastro-user {
     grid-template-columns: 1fr;

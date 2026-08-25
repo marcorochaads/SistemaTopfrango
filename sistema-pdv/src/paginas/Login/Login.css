@@ -1,4 +1,3 @@
-/* Login.css - Estilização do Portal de Acesso */
 
 :root {
   --vermelho-primario: #D32F2F;
@@ -22,7 +21,6 @@
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: var(--cor-fundo);
   background: linear-gradient(135deg, #f4f4f9 0%, #e0e0e0 100%);
 }
 
@@ -34,10 +32,9 @@
   width: 100%;
   max-width: 400px;
   text-align: center;
-  border-top: 5px solid var(--vermelho-primario); /* Reforço da cor da marca */
+  border-top: 5px solid var(--vermelho-primario);
 }
 
-/* --- ÁREA DA LOGO (Ajuste Crítico) --- */
 .area-logo {
   margin-bottom: 25px;
   display: flex;
@@ -65,7 +62,6 @@
   object-fit: cover; 
 }
 
-/* --- FORMULÁRIO --- */
 .titulo-login {
   color: var(--cor-texto);
   margin-bottom: 2rem;
@@ -91,7 +87,7 @@
 
 .input-login {
   width: 100%;
-  padding: 14px; /* Mais espaço para facilitar o clique */
+  padding: 14px;
   border: 1.5px solid var(--borda-input);
   border-radius: 8px;
   font-size: 1rem;
@@ -106,7 +102,6 @@
   outline: none;
 }
 
-/* --- BOTÕES --- */
 .botao-entrar {
   width: 100%;
   padding: 14px;
@@ -138,12 +133,11 @@
   text-align: center;
 }
 
-/* Botão de Fechar Sistema com as mesmas dimensões do Entrar */
 .btn-fechar-app {
   width: 100%;
   padding: 14px;
   background: transparent;
-  border: 1.5px solid var(--vermelho-primario); /* Borda um pouco mais espessa para igualar ao outro */
+  border: 1.5px solid var(--vermelho-primario);
   color: var(--vermelho-primario);
   border-radius: 8px;
   font-size: 1rem;

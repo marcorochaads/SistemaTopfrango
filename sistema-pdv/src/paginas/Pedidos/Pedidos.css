@@ -24,7 +24,6 @@
   box-shadow: 0 2px 10px rgba(0,0,0,0.1);
 }
 
-/* Espaço reservado para o menu flutuante lateral */
 .header-titulo-pedidos {
   margin-left: 60px;
   display: flex;
@@ -57,7 +56,6 @@
   font-size: 1rem;
 }
 
-/* Área Principal dos Cards */
 .area-pedidos {
   padding: 30px;
   overflow-y: auto;

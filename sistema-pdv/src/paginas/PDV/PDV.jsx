@@ -60,8 +60,7 @@ const PDV = ({
             mapaUnidades[p.nome] = p.unidade ? p.unidade.toLowerCase() : 'un';
             
             mapaInfoProdutos[p.nome] = {
-              vCompra: parseFloat(p.vCompra || 0),
-              isLote: p.isLote === 1 || p.isLote === true
+              vCompra: Number.parseFloat(p.vCompra || 0)
             };
           });
         }
@@ -81,16 +80,16 @@ const PDV = ({
           if (!v) return 0;
           if (typeof v === 'number') return v;
           const n = Number(String(v).replace(',', '.'));
-          return isNaN(n) ? 0 : n;
+          return Number.isNaN(n) ? 0 : n;
         };
 
         vendas.forEach(venda => {
           const dataVendaStr = venda.data ? venda.data.split(/[, ]+/)[0].trim() : '';
           if (!dataVendaStr) return;
 
-          const [ diaStr, mesStr, anoStr ] = dataVendaStr.split('/');
-          const mesVenda = parseInt(mesStr, 10);
-          const anoVenda = parseInt(anoStr, 10);
+          const [, mesStr, anoStr] = dataVendaStr.split('/');
+          const mesVenda = Number.parseInt(mesStr, 10);
+          const anoVenda = Number.parseInt(anoStr, 10);
 
           const statusVenda = venda.status ? venda.status.toLowerCase().trim() : '';
 
@@ -191,6 +190,14 @@ const PDV = ({
     buscarDadosDashboard();
   }, []);
 
+  const crescimentoPositivo = estatisticas.crescimento >= 0;
+  const corCrescimento = crescimentoPositivo ? '#0277bd' : '#D32F2F';
+  const fundoCrescimento = crescimentoPositivo
+    ? 'rgba(2, 119, 189, 0.1)'
+    : 'rgba(211, 47, 47, 0.1)';
+  const sinalCrescimento = estatisticas.crescimento > 0 ? '+' : '';
+  const crescimentoFormatado = `${sinalCrescimento}${estatisticas.crescimento.toFixed(1)}%`;
+
   return (
     <div className="container-dashboard">
       
@@ -204,44 +211,44 @@ const PDV = ({
         </div>
 
         <nav className="lista-botoes">
-          <button className="btn-menu destaque" onClick={irParaVendas}>
+          <button type="button" className="btn-menu destaque" onClick={irParaVendas}>
             <div className="conteudo-btn">
               <span>Vender</span>
               <small>Novo Pedido</small>
             </div>
             <FaChartLine size={20} />
           </button>
-          <button className="btn-menu" onClick={irParaPedidos}>
+          <button type="button" className="btn-menu" onClick={irParaPedidos}>
             <span>Pedidos</span>
             <FaClipboardList size={20} />
           </button>
-          <button className="btn-menu" onClick={irParaCaixa}>
+          <button type="button" className="btn-menu" onClick={irParaCaixa}>
             <span>Caixa</span>
             <FaDollarSign size={20} />
           </button>
-          <button className="btn-menu" onClick={irParaRotas}>
+          <button type="button" className="btn-menu" onClick={irParaRotas}>
             <span>Rotas</span>
             <FaMapMarkerAlt size={20} />
           </button>
 
           {isAdmin && (
             <>
-              <button className="btn-menu" onClick={irParaResultados}>
+              <button type="button" className="btn-menu" onClick={irParaResultados}>
                 <span>Resultados</span>
                 <FaDesktop size={20} />
               </button>
-              <button className="btn-menu" onClick={irParaEstoque}>
+              <button type="button" className="btn-menu" onClick={irParaEstoque}>
                 <span>Estoque</span>
                 <FaBoxes size={20} />
               </button>
-              <button className="btn-menu" onClick={irParaUsuarios}>
+              <button type="button" className="btn-menu" onClick={irParaUsuarios}>
                 <span>Usuários</span>
                 <FaUserPlus size={20} />
               </button>
             </>
           )}
 
-          <button className="btn-menu btn-sair" onClick={handleConfirmarSair}>
+          <button type="button" className="btn-menu btn-sair" onClick={handleConfirmarSair}>
             <span>Sair</span>
             <FaSignOutAlt size={20} />
           </button>
@@ -282,15 +289,13 @@ const PDV = ({
             </div>
 
             <div className="card-estatistica">
-              <div className="card-icone azul" style={{ backgroundColor: estatisticas.crescimento >= 0 ? 'rgba(2, 119, 189, 0.1)' : 'rgba(211, 47, 47, 0.1)', color: estatisticas.crescimento >= 0 ? '#0277bd' : '#D32F2F' }}>
-                {estatisticas.crescimento >= 0 ? <FaArrowUp /> : <FaArrowDown />}
+              <div className="card-icone azul" style={{ backgroundColor: fundoCrescimento, color: corCrescimento }}>
+                {crescimentoPositivo ? <FaArrowUp /> : <FaArrowDown />}
               </div>
               <div className="card-info">
                 <span>Crescimento (Mês)</span>
-                <h3 style={{ color: estatisticas.crescimento >= 0 ? 'inherit' : '#D32F2F' }}>
-                  {isAdmin 
-                    ? `${estatisticas.crescimento > 0 ? '+' : ''}${estatisticas.crescimento.toFixed(1)}%` 
-                    : '****'}
+                <h3 style={{ color: crescimentoPositivo ? 'inherit' : '#D32F2F' }}>
+                  {isAdmin ? crescimentoFormatado : '****'}
                 </h3>
               </div>
             </div>
@@ -326,7 +331,7 @@ const PDV = ({
                       <span className="nome-produto">{produto.nome}</span>
                       <span className="qtd-produto">
                         {produto.unidade === 'kg' 
-                          ? `${parseFloat(produto.qtd).toFixed(2).replace('.', ',')} kg` 
+                          ? `${Number.parseFloat(produto.qtd).toFixed(2).replace('.', ',')} kg` 
                           : `${produto.qtd} un.`
                         }
                       </span>

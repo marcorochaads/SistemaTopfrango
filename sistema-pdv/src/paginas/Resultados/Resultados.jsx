@@ -56,14 +56,12 @@ const Resultados = () => {
     if (!valor) return 0;
     if (typeof valor === 'number') return valor;
     const numero = Number(String(valor).replace(',', '.'));
-    return isNaN(numero) ? 0 : numero;
+    return Number.isNaN(numero) ? 0 : numero;
   };
 
-  // 1. Filtragem base
   const vendasFiltradasBase = filtrarDados(vendas, true); 
   const sangriasFiltradas = filtrarDados(sangrias, false);
 
-  // 2. Mapeamento e Cálculos Globais (Apenas lendo os dados prontos do banco)
   const vendasCalculadas = vendasFiltradasBase.map(v => {
     let calcPix = converterValor(v.pix);
     let calcDinheiro = converterValor(v.dinheiro);
@@ -89,7 +87,6 @@ const Resultados = () => {
       }
     }
 
-    // Total Real da Venda = Pix + Dinheiro + Cartão já subtraído a taxa
     const vTotalLiquido = calcPix + calcDinheiro + calcCartaoLiquido + converterValor(v.fiado);
 
     return {
@@ -104,7 +101,6 @@ const Resultados = () => {
     };
   });
 
-  // 3. Agrupamento de Totais
   const totalPix = vendasCalculadas.reduce((acc, v) => acc + v.calcPix, 0);
   const totalDinheiro = vendasCalculadas.reduce((acc, v) => acc + v.calcDinheiro, 0);
   const totalCartaoLiquido = vendasCalculadas.reduce((acc, v) => acc + v.calcCartaoLiquido, 0);
@@ -120,10 +116,8 @@ const Resultados = () => {
     return acc + (mod === 'debito' ? v.calcCartaoLiquido : 0);
   }, 0);
 
-  // Faturamento Líquido Real (O dinheiro que de fato a loja faturou após taxas)
   const faturamentoLiquidoReal = totalPix + totalCartaoLiquido + totalDinheiro;
   
-  // Saldo em Caixa Físico (Apenas Dinheiro - Sangrias)
   const totalRetiradas = sangriasFiltradas.reduce((acc, s) => acc + converterValor(s.valor), 0);
   const saldoCaixaFisico = totalDinheiro - totalRetiradas;
 
@@ -154,10 +148,10 @@ const Resultados = () => {
             onChange={(e) => setDataSelecionada(e.target.value)}
           />
           <div className="seletor-tempo">
-            <button className={filtro === 'dia' ? 'active' : ''} onClick={() => setFiltro('dia')}>
+            <button type="button" className={filtro === 'dia' ? 'active' : ''} onClick={() => setFiltro('dia')}>
               <FaCalendarDay /> Dia
             </button>
-            <button className={filtro === 'mes' ? 'active' : ''} onClick={() => setFiltro('mes')}>
+            <button type="button" className={filtro === 'mes' ? 'active' : ''} onClick={() => setFiltro('mes')}>
               <FaCalendarDays /> Mês
             </button>
           </div>
@@ -205,9 +199,11 @@ const Resultados = () => {
                     formatter={(value) => formatarMoeda(value)} 
                   />
                   <Bar dataKey="valor" radius={[10, 10, 0, 0]}>
-                    {dadosGrafico.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === 0 ? '#2fd33d' : index === 1 ? '#1976d2' : '#2E7D32'} />
-                    ))}
+                    {dadosGrafico.map((entry, index) => {
+                      const cores = ['#2fd33d', '#1976d2', '#2E7D32'];
+
+                      return <Cell key={`cell-${entry.name}`} fill={cores[index]} />;
+                    })}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -295,7 +291,6 @@ const Resultados = () => {
                           if (venda.calcPix > 0) badges.push(<span key="pix" className="badge-pagamento pix">Pix: {formatarMoeda(venda.calcPix)}</span>);
                           if (venda.calcDinheiro > 0) badges.push(<span key="dinheiro" className="badge-pagamento dinheiro">Din: {formatarMoeda(venda.calcDinheiro)}</span>);
                           
-                          // Exibindo o valor Líquido e a taxa descontada no pedido
                           if (venda.calcCartaoBruto > 0) {
                             const modalidade = venda.modalidade_cartao ? ` (${venda.modalidade_cartao})` : '';
                             badges.push(
@@ -315,7 +310,7 @@ const Resultados = () => {
                               const pagFinal = venda.pagamento || 'Quitado';
                               const classeBadge = pagFinal.toLowerCase() === 'múltiplo' ? 'multiplo' : pagFinal.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                               
-                              let labelPagamento = pagFinal;
+                              const labelPagamento = pagFinal;
                               badges.push(
                                 <span key="restante" className={`badge-pagamento ${classeBadge}`}>
                                   {labelPagamento}: {formatarMoeda(valorRestante)}
@@ -345,7 +340,6 @@ const Resultados = () => {
                           );
                         })()}
                       </td>
-                      {/* A tabela mostra o total final após as taxas */}
                       <td className="valor-td" style={{ fontWeight: 'bold' }}>
                         {formatarMoeda(venda.vTotalLiquido)}
                         {venda.calcTaxaCartao > 0 && (

@@ -11,7 +11,7 @@ const AvisoServidor = ({ aoTentarNovamente }) => {
           <strong>Servidor Offline:</strong> Não foi possível conectar ao banco de dados da TopFrango.
         </span>
       </div>
-      <button className="btn-reconectar" onClick={aoTentarNovamente}>
+      <button type="button" className="btn-reconectar" onClick={aoTentarNovamente}>
         <FaSync /> Tentar Conectar
       </button>
     </div>

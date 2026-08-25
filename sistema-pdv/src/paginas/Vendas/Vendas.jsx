@@ -42,7 +42,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       const res = await fetch('http://localhost:5000/api/vendas');
       if (res.ok) {
         const vendas = await res.json();
-        const vendasDeHoje = vendas.filter(venda => venda.data && venda.data.split(',')[0].trim() === dataAtual);
+        const vendasDeHoje = vendas.filter(venda => venda.data?.split(',')[0].trim() === dataAtual);
         setNumeroVenda(vendasDeHoje.length + 1);
       }
     } catch (error) {
@@ -55,7 +55,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       const res = await fetch('http://localhost:5000/api/aberturas');
       if (res.ok) {
         const aberturas = await res.json();
-        const temAberturaHoje = aberturas.some(a => a.data && a.data.split(/[, ]+/)[0].trim() === dataAtual);
+        const temAberturaHoje = aberturas.some(a => a.data?.split(/[, ]+/)[0].trim() === dataAtual);
         setCaixaAberto(temAberturaHoje);
       }
     } catch (error) {
@@ -71,7 +71,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
 
   const adicionarItem = (prodEstoque) => {
     const itemExistente = carrinho.find(item => item.id === prodEstoque.id);
-    const qtdNoCarrinho = itemExistente ? parseFloat(itemExistente.qtd) || 0 : 0;
+    const qtdNoCarrinho = itemExistente ? Number.parseFloat(itemExistente.qtd) || 0 : 0;
 
     if (prodEstoque.qtd <= 0) {
       alert("Produto esgotado no estoque!");
@@ -118,7 +118,7 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
       return;
     }
     
-    if (valor !== '' && parseFloat(valor) > prodOriginal.qtd) {
+    if (valor !== '' && Number.parseFloat(valor) > prodOriginal.qtd) {
       alert(`Atenção: O peso digitado (${valor}kg) é maior que o estoque atual disponível (${prodOriginal.qtd}kg)`);
     }
 
@@ -132,10 +132,10 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
     setIsModalOpen(false);
   };
 
-  const totalGeral = carrinho.reduce((acc, item) => acc + (item.preco * (parseFloat(item.qtd) || 0)), 0);
+  const totalGeral = carrinho.reduce((acc, item) => acc + (item.preco * (Number.parseFloat(item.qtd) || 0)), 0);
 
   const confirmarPedido = async (metodoSelecionado, detalhesPagamento = null) => {
-    const itensVazios = carrinho.some(item => item.unidade === 'kg' && (item.qtd === '' || parseFloat(item.qtd) <= 0));
+    const itensVazios = carrinho.some(item => item.unidade === 'kg' && (item.qtd === '' || Number.parseFloat(item.qtd) <= 0));
     if (itensVazios) {
         alert("Preencha o peso (kg) de todos os itens antes de finalizar.");
         return;
@@ -157,10 +157,10 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
 
     if (metodoLower === 'múltiplo' || metodoLower === 'multiplo') {
       if (detalhesPagamento) {
-        valDinheiro = parseFloat(detalhesPagamento.Dinheiro || detalhesPagamento.dinheiro) || 0;
-        valPix = parseFloat(detalhesPagamento.PIX || detalhesPagamento.pix) || 0;
-        valCartao = parseFloat(detalhesPagamento.Cartao || detalhesPagamento.cartao) || 0;
-        valFiado = parseFloat(detalhesPagamento.Fiado || detalhesPagamento.fiado) || 0;
+        valDinheiro = Number.parseFloat(detalhesPagamento.Dinheiro || detalhesPagamento.dinheiro) || 0;
+        valPix = Number.parseFloat(detalhesPagamento.PIX || detalhesPagamento.pix) || 0;
+        valCartao = Number.parseFloat(detalhesPagamento.Cartao || detalhesPagamento.cartao) || 0;
+        valFiado = Number.parseFloat(detalhesPagamento.Fiado || detalhesPagamento.fiado) || 0;
 
         
         if (detalhesPagamento.modalidade_cartao) modalidadeCartaoSalvar = detalhesPagamento.modalidade_cartao;
@@ -178,19 +178,18 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
         
         descricaoPagamento = `Múltiplo (${partes.join(' | ')})`;
       }
-    } else {
-      if (metodoLower === 'dinheiro') valDinheiro = (detalhesPagamento && detalhesPagamento.dinheiro) ? detalhesPagamento.dinheiro : totalGeral;
-      else if (metodoLower === 'pix') valPix = (detalhesPagamento && detalhesPagamento.pix) ? detalhesPagamento.pix : totalGeral;
-      else if (metodoLower.includes('cartão') || metodoLower.includes('cartao')) {
-        valCartao = (detalhesPagamento && detalhesPagamento.cartao) ? detalhesPagamento.cartao : totalGeral;
+    } else if (metodoLower === 'dinheiro') {
+      valDinheiro = detalhesPagamento?.dinheiro || totalGeral;
+    } else if (metodoLower === 'pix') {
+      valPix = detalhesPagamento?.pix || totalGeral;
+    } else if (metodoLower.includes('cartão') || metodoLower.includes('cartao')) {
+        valCartao = detalhesPagamento?.cartao || totalGeral;
         
         
-        if (detalhesPagamento) {
-          if (detalhesPagamento.modalidade_cartao) modalidadeCartaoSalvar = detalhesPagamento.modalidade_cartao;
-          if (detalhesPagamento.parcelas_cartao) parcelasCartaoSalvar = detalhesPagamento.parcelas_cartao;
-        }
-      }
-      else if (metodoLower === 'fiado' || metodoLower === 'pagar depois') valFiado = totalGeral; 
+        if (detalhesPagamento?.modalidade_cartao) modalidadeCartaoSalvar = detalhesPagamento.modalidade_cartao;
+        if (detalhesPagamento?.parcelas_cartao) parcelasCartaoSalvar = detalhesPagamento.parcelas_cartao;
+    } else if (metodoLower === 'fiado' || metodoLower === 'pagar depois') {
+      valFiado = totalGeral;
     }
 
     if (valFiado > 0 && cliente.trim() === '') {
@@ -201,13 +200,13 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
     if (metodoLower === 'pagar depois' || valFiado > 0) {
       if (typeof detalhesPagamento === 'string') {
         telefoneSalvar = detalhesPagamento;
-      } else if (detalhesPagamento && detalhesPagamento.telefone) {
+      } else if (detalhesPagamento?.telefone) {
         telefoneSalvar = detalhesPagamento.telefone;
       }
     }
 
     const itensNormalizados = carrinho.map(item => {
-      const quantidadeValida = parseFloat(item.qtd) || 0;
+      const quantidadeValida = Number.parseFloat(item.qtd) || 0;
       return {
         produto_id: item.id,
         quantidade: quantidadeValida, 
@@ -291,7 +290,8 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
             <FaCashRegister size={50} style={{ marginBottom: '15px' }} />
             <h2>Caixa Fechado</h2>
             <p>Você precisa abrir o caixa do dia na tela de "Caixa" antes de registrar vendas.</p>
-            <button 
+            <button
+              type="button"
               onClick={irParaCaixa} 
               style={{
                 marginTop: '20px', padding: '12px 24px', backgroundColor: '#d32f2f', color: '#fff',
@@ -305,29 +305,34 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
           </div>
         ) : (
           <div className="grid-produtos">
-            {produtos.map((prod) => (
-              <button 
-                key={prod.id} 
-                className={`card-produto ${prod.qtd <= 0 ? 'sem-estoque' : ''}`} 
-                onClick={() => adicionarItem(prod)}
-                disabled={prod.qtd <= 0}
-              >
-                <span className="tag-unidade">{prod.unidade.toUpperCase()}</span>
-                {prod.unidade === 'kg' ? (
-                  <FaWeightHanging className="icone-peso-kg" size={26} color={prod.qtd <= 0 ? "#ffcccc" : "#D32F2F"} />
-                ) : (
-                  <FaBox className="icone-unidade" size={26} color={prod.qtd <= 0 ? "#cccccc" : "#1976D2"} />
-                )}
-                <span className="nome-prod">{prod.nome}</span>
-                <span className="preco-prod">
-                  R$ {formatarValorBR(prod.unidade === 'kg' ? prod.vKG : prod.vVenda)}
-                  {prod.unidade === 'kg' ? '/kg' : ''}
-                </span>
-                <small className="estoque-indicador">
-                  {prod.qtd <= 0 ? "ESGOTADO" : `Estoque: ${prod.qtd} ${prod.unidade === 'kg' ? 'kg' : 'un'}`}
-                </small>
-              </button>
-            ))}
+            {produtos.map((prod) => {
+              const unidadeEstoque = prod.unidade === 'kg' ? 'kg' : 'un';
+
+              return (
+                <button
+                  type="button"
+                  key={prod.id}
+                  className={`card-produto ${prod.qtd <= 0 ? 'sem-estoque' : ''}`}
+                  onClick={() => adicionarItem(prod)}
+                  disabled={prod.qtd <= 0}
+                >
+                  <span className="tag-unidade">{prod.unidade.toUpperCase()}</span>
+                  {prod.unidade === 'kg' ? (
+                    <FaWeightHanging className="icone-peso-kg" size={26} color={prod.qtd <= 0 ? "#ffcccc" : "#D32F2F"} />
+                  ) : (
+                    <FaBox className="icone-unidade" size={26} color={prod.qtd <= 0 ? "#cccccc" : "#1976D2"} />
+                  )}
+                  <span className="nome-prod">{prod.nome}</span>
+                  <span className="preco-prod">
+                    R$ {formatarValorBR(prod.unidade === 'kg' ? prod.vKG : prod.vVenda)}
+                    {prod.unidade === 'kg' ? '/kg' : ''}
+                  </span>
+                  <small className="estoque-indicador">
+                    {prod.qtd <= 0 ? "ESGOTADO" : `Estoque: ${prod.qtd} ${unidadeEstoque}`}
+                  </small>
+                </button>
+              );
+            })}
           </div>
         )}
       </section>
@@ -337,8 +342,9 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
           <h3>Resumo do Pedido</h3>
         </div>
         <div className="form-cliente">
-          <label>Cliente (Obrigatório p/ Fiado):</label>
+          <label htmlFor="cliente-venda">Cliente (Obrigatório p/ Fiado):</label>
           <input
+            id="cliente-venda"
             type="text"
             placeholder="Nome do cliente..."
             value={cliente}
@@ -373,9 +379,9 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
                   <div className="controle-qtd">
                     {item.unidade === 'un' ? (
                       <>
-                        <button className="btn-qtd" onClick={() => diminuirItem(item.id)}><FaMinus size={10} /></button>
+                        <button type="button" className="btn-qtd" onClick={() => diminuirItem(item.id)}><FaMinus size={10} /></button>
                         <span className="qtd-numero">{item.qtd}</span>
-                        <button className="btn-qtd" onClick={() => {
+                        <button type="button" className="btn-qtd" onClick={() => {
                             const pOrig = produtos.find(p => p.id === item.id);
                             adicionarItem(pOrig);
                         }}><FaPlus size={10} /></button>
@@ -393,8 +399,8 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
                       </div>
                     )}
                   </div>
-                  <div className="subtotal"><span>R$ {formatarValorBR(item.preco * (parseFloat(item.qtd) || 0))}</span></div>
-                  <button className="btn-lixeira" onClick={() => removerItem(item.id)}><FaTrash /></button>
+                  <div className="subtotal"><span>R$ {formatarValorBR(item.preco * (Number.parseFloat(item.qtd) || 0))}</span></div>
+                  <button type="button" className="btn-lixeira" onClick={() => removerItem(item.id)}><FaTrash /></button>
                 </div>
               ))
             )}
@@ -406,8 +412,9 @@ const Vendas = ({ irParaCaixa, irParaRotas }) => {
             <span className="valor-total">R$ {formatarValorBR(totalGeral)}</span>
           </div>
           <div className="botoes-acao">
-            <button className="btn-cancelar" onClick={novaVenda}><FaEraser /> Limpar</button>
-            <button 
+            <button type="button" className="btn-cancelar" onClick={novaVenda}><FaEraser /> Limpar</button>
+            <button
+              type="button"
               className="btn-finalizar" 
               onClick={() => {
                 if (isEntrega) {

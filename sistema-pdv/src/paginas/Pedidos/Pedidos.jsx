@@ -37,40 +37,52 @@ const Pedidos = () => {
     if (!valor) return 0;
     if (typeof valor === 'number') return valor;
     const numero = Number(String(valor).replace(',', '.'));
-    return isNaN(numero) ? 0 : numero;
+    return Number.isNaN(numero) ? 0 : numero;
+  };
+
+  const calcularValorPagamento = (valorInformado, metodoCorresponde, valorRodada) => {
+    if (valorInformado !== undefined) {
+      return converterValor(valorInformado);
+    }
+
+    return metodoCorresponde ? valorRodada : 0;
   };
 
   const finalizarBaixa = async (metodoPagamentoReal, dadosAdicionais = {}) => {
-    // 1. Pega o que JÁ ESTAVA PAGO no banco para não perder o histórico
     const pixAntigo = converterValor(pedidoSelecionado.pix);
     const cartaoAntigo = converterValor(pedidoSelecionado.cartao);
     const dinheiroAntigo = converterValor(pedidoSelecionado.dinheiro);
 
-    // 2. Padroniza o texto do método de pagamento
     const metodoTratado = typeof metodoPagamentoReal === 'string' ? metodoPagamentoReal.toLowerCase() : '';
 
-    // 3. Descobre o valor que o cliente devia antes de abrir o modal
     const valorDevido = converterValor(pedidoSelecionado.fiado) > 0 
       ? converterValor(pedidoSelecionado.fiado) 
       : converterValor(pedidoSelecionado.total);
 
-    // 4. Pega o valor exato que você digitou no modal (seja parcial ou total)
     const valorPagoNestaRodada = dadosAdicionais.valorPago !== undefined 
       ? converterValor(dadosAdicionais.valorPago) 
       : valorDevido;
 
-    // 5. Calcula os valores desta rodada usando o que foi realmente pago
-    const novoPix = dadosAdicionais.pix !== undefined ? converterValor(dadosAdicionais.pix) : (metodoTratado === 'pix' ? valorPagoNestaRodada : 0);
-    const novoCartao = dadosAdicionais.cartao !== undefined ? converterValor(dadosAdicionais.cartao) : (metodoTratado.includes('cart') ? valorPagoNestaRodada : 0);
-    const novoDinheiro = dadosAdicionais.dinheiro !== undefined ? converterValor(dadosAdicionais.dinheiro) : (metodoTratado === 'dinheiro' ? valorPagoNestaRodada : 0);
+    const novoPix = calcularValorPagamento(
+      dadosAdicionais.pix,
+      metodoTratado === 'pix',
+      valorPagoNestaRodada
+    );
+    const novoCartao = calcularValorPagamento(
+      dadosAdicionais.cartao,
+      metodoTratado.includes('cart'),
+      valorPagoNestaRodada
+    );
+    const novoDinheiro = calcularValorPagamento(
+      dadosAdicionais.dinheiro,
+      metodoTratado === 'dinheiro',
+      valorPagoNestaRodada
+    );
 
-    // 6. Captura se sobrou valor no Fiado caso seja feito um pagamento parcial
     const novoFiado = dadosAdicionais.fiado !== undefined ? converterValor(dadosAdicionais.fiado) : 0;
 
-    // 7. Se ainda sobrou fiado a pagar, o status se mantém 'Pendente', senão muda para 'Pago'
     const novoStatus = novoFiado > 0 ? 'Pendente' : 'Pago';
 
-    // 8. Captura a modalidade e parcelas
     const modalidadeCartaoSalvar = dadosAdicionais.modalidadeCartao || pedidoSelecionado.modalidade_cartao || null;
     const parcelasCartaoSalvar = dadosAdicionais.parcelasCartao || pedidoSelecionado.parcelas_cartao || 1;
 
@@ -79,7 +91,7 @@ const Pedidos = () => {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          status: novoStatus, // Status dinâmico
+          status: novoStatus,
           pagamento: metodoPagamentoReal, 
           telefone: dadosAdicionais.telefone || pedidoSelecionado.telefone || pedidoSelecionado.telefone_cliente,
           endereco: pedidoSelecionado.endereco,
@@ -200,7 +212,8 @@ const Pedidos = () => {
                       </div>
                       
                       {telefoneExibicao ? (
-                        <button 
+                        <button
+                          type="button"
                           onClick={() => abrirWhatsApp(telefoneExibicao)}
                           title="Chamar no WhatsApp"
                           style={{ 
@@ -223,10 +236,11 @@ const Pedidos = () => {
                     
                     <div className="detalhes-itens-lista" style={{ marginTop: '10px' }}>
                       {Array.isArray(pedido.itens) ? (
-                        pedido.itens.map((item, index) => (
-                          <div key={index} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '5px', borderRadius: '4px', marginBottom: '4px', fontSize: '0.9rem' }}>
+                        pedido.itens.map((item) => (
+                          <div key={item.produto_id ?? item.id ?? item.produto_nome} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f8f9fa', padding: '5px', borderRadius: '4px', marginBottom: '4px', fontSize: '0.9rem' }}>
                             <span>{item.quantidade}x {item.produto_nome} <small>(R$ {converterValor(item.subtotal).toFixed(2)})</small></span>
                             <button
+                              type="button"
                               onClick={() => removerItemDaVenda(pedido.id, item)}
                               style={{ background: 'transparent', border: 'none', color: '#dc3545', cursor: 'pointer', padding: '5px' }}
                               title="Remover produto e devolver ao estoque"
@@ -254,7 +268,7 @@ const Pedidos = () => {
                     </div>
                   </div>
 
-                  <button className="btn-dar-baixa" onClick={() => prepararBaixa(pedido)}>
+                  <button type="button" className="btn-dar-baixa" onClick={() => prepararBaixa(pedido)}>
                     <FaCheckCircle /> Dar Baixa (Receber)
                   </button>
                 </div>

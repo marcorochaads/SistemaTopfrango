@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "amqplib": "^2.0.1",
     "react-icons": "^5.5.0",
     "recharts": "^3.6.0"
   }

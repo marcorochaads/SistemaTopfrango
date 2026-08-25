@@ -4,7 +4,6 @@ import { FaBoxes, FaPlus, FaTrash, FaTag, FaPen } from 'react-icons/fa';
 import { FaBrazilianRealSign } from 'react-icons/fa6';
 
 const Estoque = () => {
-  // Estados do formulário de Adição
   const [nome, setNome] = useState('');
   const [valorCompra, setValorCompra] = useState('');
   const [valorVenda, setValorVenda] = useState('');
@@ -13,41 +12,34 @@ const Estoque = () => {
   const [isKG, setIsKG] = useState(false);
   const [isCompraLote, setIsCompraLote] = useState(false); 
   
-  // Estado da Lista de Produtos
   const [produtos, setProdutos] = useState([]);
 
-  // Estados do Modal de Edição
   const [modalEdicao, setModalEdicao] = useState(false);
   const [prodEdit, setProdEdit] = useState(null);
 
-  // --- FUNÇÕES DE MÁSCARA E CONVERSÃO ---
   const aplicarMascaraDinheiro = (valor) => {
     let v = valor.replace(/\D/g, ''); 
     if (v === '') return '';
-    v = (Number(v) / 100).toFixed(2);
-    v = v.replace('.', ',');
-    v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, '$1.');
-    return v;
+    const numero = Number(v) / 100;
+    
+    return numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const parseDinheiro = (str) => {
     if (!str) return 0;
     if (typeof str === 'number') return str;
-    return parseFloat(str.replace(/\./g, '').replace(',', '.'));
+    return Number.parseFloat(str.replaceAll('.', '').replace(',', '.'));
   };
 
-  // Blindagem contra digitação de vírgulas no campo de quantidade
   const parseQuantidade = (valor) => {
     if (!valor) return 0;
-    return parseFloat(String(valor).replace(',', '.'));
+    return Number.parseFloat(String(valor).replace(',', '.'));
   };
 
   const formatarParaInput = (valor) => {
     if (!valor && valor !== 0) return "";
-    let v = Number(valor).toFixed(2);
-    v = v.replace(".", ",");
-    v = v.replace(/(\d)(?=(\d{3})+(?!\d))/g, "$1.");
-    return v;
+    const numero = Number(valor);
+    return numero.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   const carregarProdutos = async () => {
@@ -56,7 +48,8 @@ const Estoque = () => {
       const dados = await res.json();
       setProdutos(dados);
     } catch (error) {
-      console.error("Erro ao carregar estoque:", error);
+      console.error('Erro ao carregar estoque:', error);
+      setProdutos([]);
     }
   };
 
@@ -64,12 +57,9 @@ const Estoque = () => {
     carregarProdutos();
   }, []);
 
-  const adicionarProduto = async () => {
-    const nomeTratado = nome.trim(); // Limpa espaços extras no começo e no fim
-
+  const validarCadastro = ({ nomeTratado, valorCompra, quantidade, isKG, valorKG, valorVenda, isCompraLote }) => {
     if (!nomeTratado || !valorCompra || !quantidade || (isKG && !valorKG) || (!isKG && !valorVenda)) {
-      alert("Preencha todos os campos obrigatórios!");
-      return;
+      return 'Preencha todos os campos obrigatórios!';
     }
 
     const numCompra = parseDinheiro(valorCompra);
@@ -78,44 +68,65 @@ const Estoque = () => {
     const numKG = parseDinheiro(valorKG);
 
     if (numCompra < 0 || numQtd < 0) {
-      alert("Erro: A quantidade e o valor de compra não podem ser negativos!");
-      return;
+      return 'Erro: A quantidade e o valor de compra não podem ser negativos!';
     }
-
     if (isKG && numKG <= 0) {
-      alert("Erro: O valor do KG deve ser maior que zero!");
-      return;
+      return 'Erro: O valor do KG deve ser maior que zero!';
     }
-
     if (!isKG && numVenda <= 0) {
-      alert("Erro: O preço de venda unitário deve ser maior que zero!");
-      return;
+      return 'Erro: O preço de venda unitário deve ser maior que zero!';
     }
 
-    // --- VALIDAÇÃO INTELIGENTE DE PREJUÍZO ---
-    if (!isKG) {
-      if (isCompraLote) {
-        const faturamentoTotalLote = numQtd * numVenda;
-        if (faturamentoTotalLote < numCompra) {
-          alert(`Erro: Prejuízo detectado! O lote custou R$ ${numCompra.toFixed(2)}, mas a venda de todas as ${numQtd} unidades renderá apenas R$ ${faturamentoTotalLote.toFixed(2)}.`);
-          return;
-        }
-      } else if (numVenda < numCompra) {
-        alert("Erro: Prejuízo detectado! O preço de venda da unidade não pode ser menor que o custo de compra.");
-        return;
-      }
-    } 
-    else {
-      if (isCompraLote) {
-        const faturamentoTotalPeso = numQtd * numKG;
-        if (faturamentoTotalPeso < numCompra) {
-          alert(`Erro: Prejuízo detectado! O lote custou R$ ${numCompra.toFixed(2)}, mas a venda dos ${numQtd}kg renderá apenas R$ ${faturamentoTotalPeso.toFixed(2)}.`);
-          return;
-        }
-      } else if (numKG < numCompra) {
-        alert("Erro: Prejuízo detectado! O preço de venda do KG não pode ser menor que o custo de compra do KG.");
-        return;
-      }
+    const valorVendaTotal = isKG ? numQtd * numKG : numQtd * numVenda;
+    const custoTotal = isCompraLote ? numCompra : numCompra * numQtd;
+    if (valorVendaTotal < custoTotal) {
+      return `Erro: Prejuízo detectado! O valor total de venda não pode ser menor que o custo total.`;
+    }
+
+    return null;
+  };
+
+  const validarEdicao = ({ nome, qtd, vCompra, unidade, vVenda, vKG }) => {
+    if (!nome || qtd === '' || vCompra === '') {
+      return 'Preencha os campos obrigatórios para editar!';
+    }
+
+    const numCompra = parseDinheiro(vCompra);
+    const numQtd = parseQuantidade(qtd);
+    const numVenda = parseDinheiro(vVenda);
+    const numKG = parseDinheiro(vKG);
+
+    if (numCompra < 0 || numQtd < 0) {
+      return 'Erro: Quantidade e compra não podem ser negativos!';
+    }
+    if (unidade === 'kg' && numKG <= 0) {
+      return 'Erro: O valor do KG deve ser maior que zero!';
+    }
+    if (unidade === 'un' && numVenda <= 0) {
+      return 'Erro: O preço de venda unitário deve ser maior que zero!';
+    }
+    if (unidade === 'un' && numVenda < numCompra) {
+      return 'Erro: Prejuízo detectado! O preço de venda da unidade não pode ser menor que o custo unitário.';
+    }
+    if (unidade === 'kg' && numKG < numCompra) {
+      return 'Erro: Prejuízo detectado! O preço de venda do KG não pode ser menor que o custo do KG.';
+    }
+
+    return null;
+  };
+
+  const adicionarProduto = async () => {
+    const nomeTratado = nome.trim();
+
+    const numCompra = parseDinheiro(valorCompra);
+    const numQtd = parseQuantidade(quantidade);
+    const numVenda = parseDinheiro(valorVenda);
+    const numKG = parseDinheiro(valorKG);
+
+    const erroValidacao = validarCadastro({ nomeTratado, valorCompra, quantidade, isKG, valorKG, valorVenda, isCompraLote });
+    if (erroValidacao) {
+      alert(erroValidacao);
+      return;
     }
 
     const novoProduto = {
@@ -137,7 +148,7 @@ const Estoque = () => {
 
       if (res.ok) {
         alert("Produto/Lote cadastrado com sucesso!");
-        carregarProdutos();
+        await carregarProdutos();
         
         setNome(''); setValorCompra(''); setValorVenda(''); setQuantidade(''); setValorKG('');
         setIsCompraLote(false); 
@@ -146,18 +157,28 @@ const Estoque = () => {
         alert("Este produto já está cadastrado.");
       }
     } catch (error) {
-      alert("Erro ao conectar com o servidor.");
+      console.error('Erro ao cadastrar produto:', error);
+      alert('Erro ao conectar com o servidor. Tente novamente.');
     }
   };
 
   const removerProduto = async (id) => {
     if (window.confirm("Deseja excluir este produto do sistema?")) {
-      await fetch(`http://localhost:5000/api/produtos/${id}`, { method: 'DELETE' });
-      carregarProdutos();
+      try {
+        const res = await fetch(`http://localhost:5000/api/produtos/${id}`, { method: 'DELETE' });
+
+        if (!res.ok) {
+          throw new Error(`Falha ao excluir produto: HTTP ${res.status}`);
+        }
+
+        await carregarProdutos();
+      } catch (error) {
+        console.error('Erro ao remover produto:', error);
+        alert('Erro ao excluir o produto. Tente novamente.');
+      }
     }
   };
 
-  // --- LÓGICA DE EDIÇÃO ---
   const abrirModalEdicao = (produto) => {
     setProdEdit({ 
       ...produto,
@@ -171,41 +192,22 @@ const Estoque = () => {
   const salvarEdicao = async () => {
     const nomeTratado = prodEdit.nome.trim(); 
 
-    if (!nomeTratado || prodEdit.qtd === '' || prodEdit.vCompra === '') {
-      alert("Preencha os campos obrigatórios para editar!");
-      return;
-    }
-
     const numCompra = parseDinheiro(prodEdit.vCompra);
     const numQtd = parseQuantidade(prodEdit.qtd); 
     const numVenda = parseDinheiro(prodEdit.vVenda);
     const numKG = parseDinheiro(prodEdit.vKG);
 
-    if (numCompra < 0 || numQtd < 0) {
-      alert("Erro: Quantidade e compra não podem ser negativos!");
+    const erroValidacao = validarEdicao({
+      nome: nomeTratado,
+      qtd: prodEdit.qtd,
+      vCompra: prodEdit.vCompra,
+      unidade: prodEdit.unidade,
+      vVenda: prodEdit.vVenda,
+      vKG: prodEdit.vKG
+    });
+    if (erroValidacao) {
+      alert(erroValidacao);
       return;
-    }
-
-    if (prodEdit.unidade === 'kg' && numKG <= 0) {
-      alert("Erro: O valor do KG deve ser maior que zero!");
-      return;
-    }
-    if (prodEdit.unidade === 'un' && numVenda <= 0) {
-      alert("Erro: O preço de venda unitário deve ser maior que zero!");
-      return;
-    }
-
-    if (prodEdit.unidade === 'un') {
-      if (numVenda < numCompra) {
-        alert("Erro: Prejuízo detectado! O preço de venda da unidade não pode ser menor que o custo unitário.");
-        return;
-      }
-    } 
-    else if (prodEdit.unidade === 'kg') {
-      if (numKG < numCompra) {
-        alert("Erro: Prejuízo detectado! O preço de venda do KG não pode ser menor que o custo do KG.");
-        return;
-      }
     }
 
     const produtoAtualizado = {
@@ -226,14 +228,15 @@ const Estoque = () => {
 
       if (res.ok) {
         alert("Produto atualizado com sucesso!"); 
-        carregarProdutos(); 
+        await carregarProdutos(); 
         setModalEdicao(false); 
         setProdEdit(null);
       } else {
         alert("Erro ao atualizar o produto. Verifique se o nome já existe.");
       }
     } catch (error) {
-      alert("Erro ao conectar com o servidor para editar.");
+      console.error('Erro ao editar produto:', error);
+      alert('Erro ao conectar com o servidor para editar. Tente novamente.');
     }
   };
 
@@ -242,7 +245,7 @@ const Estoque = () => {
   };
 
   const formatarPeso = (valor) => {
-    return parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return Number.parseFloat(valor).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   };
 
   return (
@@ -261,21 +264,22 @@ const Estoque = () => {
           <div className="grid-form" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', alignItems: 'end', marginBottom: '20px' }}>
             
             <div className="campo-form nome-prod" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontWeight: 'bold' }}><FaTag /> Nome do produto:</label>
-              <input type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Frango Inteiro" style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
+              <label htmlFor="nome-produto" style={{ fontWeight: 'bold' }}><FaTag /> Nome do produto:</label>
+              <input id="nome-produto" type="text" value={nome} onChange={e => setNome(e.target.value)} placeholder="Ex: Frango Inteiro" style={{ padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }} />
             </div>
 
             <div className="campo-form checkbox-kg" style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '42px' }}>
-              <label className="switch" style={{ margin: 0 }}>
-                <input type="checkbox" checked={isCompraLote} onChange={e => setIsCompraLote(e.target.checked)} />
+              <label className="switch" htmlFor="compra-lote" style={{ margin: 0 }}>
+                <input id="compra-lote" type="checkbox" checked={isCompraLote} onChange={e => setIsCompraLote(e.target.checked)} aria-label="Comprado em lote" />
                 <span className="slider round"></span>
               </label>
               <span style={{ fontWeight: 'bold', color: '#333' }}>Comprado em Lote?</span>
             </div>
 
             <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <label style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> {isCompraLote ? 'Custo de Compra (LOTE):' : 'Custo de Compra (UND):'}</label>
+              <label htmlFor="valor-compra" style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> {isCompraLote ? 'Custo de Compra (LOTE):' : 'Custo de Compra (UND):'}</label>
               <input 
+                id="valor-compra"
                 type="text" 
                 value={valorCompra} 
                 onChange={e => setValorCompra(aplicarMascaraDinheiro(e.target.value))} 
@@ -285,8 +289,8 @@ const Estoque = () => {
             </div>
 
             <div className="campo-form checkbox-kg" style={{ display: 'flex', alignItems: 'center', gap: '10px', height: '42px' }}>
-              <label className="switch" style={{ margin: 0 }}>
-                <input type="checkbox" checked={isKG} onChange={e => setIsKG(e.target.checked)} />
+              <label className="switch" htmlFor="vendido-por-kg" style={{ margin: 0 }}>
+                <input id="vendido-por-kg" type="checkbox" checked={isKG} onChange={e => setIsKG(e.target.checked)} aria-label="Vendido por KG" />
                 <span className="slider round"></span>
               </label>
               <span style={{ fontWeight: 'bold', color: '#333' }}>Vendido por KG?</span>
@@ -295,8 +299,9 @@ const Estoque = () => {
             {isKG ? (
               <>
                 <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontWeight: 'bold' }}>Quantidade {isCompraLote ? 'Total do Lote' : ''} (KG):</label>
+                  <label htmlFor="quantidade-kg" style={{ fontWeight: 'bold' }}>Quantidade {isCompraLote ? 'Total do Lote' : ''} (KG):</label>
                   <input 
+                    id="quantidade-kg"
                     type="text" 
                     value={quantidade} 
                     onChange={e => setQuantidade(e.target.value.replace(/[^0-9.,]/g, ''))} 
@@ -305,8 +310,9 @@ const Estoque = () => {
                   />
                 </div>
                 <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> Valor de Venda (KG):</label>
+                  <label htmlFor="valor-kg" style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> Valor de Venda (KG):</label>
                   <input 
+                    id="valor-kg"
                     type="text" 
                     value={valorKG} 
                     onChange={e => setValorKG(aplicarMascaraDinheiro(e.target.value))} 
@@ -318,8 +324,9 @@ const Estoque = () => {
             ) : (
               <>
                 <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontWeight: 'bold' }}>Quantidade (UN):</label>
+                  <label htmlFor="quantidade-un" style={{ fontWeight: 'bold' }}>Quantidade (UN):</label>
                   <input 
+                    id="quantidade-un"
                     type="text" 
                     value={quantidade} 
                     onChange={e => setQuantidade(e.target.value.replace(/[^0-9.,]/g, ''))} 
@@ -328,8 +335,9 @@ const Estoque = () => {
                   />
                 </div>
                 <div className="campo-form" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <label style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> Valor de Venda (UN):</label>
+                  <label htmlFor="valor-venda" style={{ fontWeight: 'bold' }}><FaBrazilianRealSign /> Valor de Venda (UN):</label>
                   <input 
+                    id="valor-venda"
                     type="text" 
                     value={valorVenda} 
                     onChange={e => setValorVenda(aplicarMascaraDinheiro(e.target.value))} 
@@ -340,7 +348,7 @@ const Estoque = () => {
               </>
             )}
           </div>
-          <button className="btn-adicionar" onClick={adicionarProduto} style={{ marginTop: '10px' }}>
+          <button type="button" className="btn-adicionar" onClick={adicionarProduto} style={{ marginTop: '10px' }}>
             <FaPlus /> Salvar no Sistema
           </button>
         </section>
@@ -390,10 +398,10 @@ const Estoque = () => {
                         : `${formatarMoeda(prod.vVenda)}/un`}
                     </td>
                     <td className="acoes-td">
-                      <button className="btn-acao-prod editar" onClick={() => abrirModalEdicao(prod)} title="Editar Produto">
+                      <button type="button" className="btn-acao-prod editar" onClick={() => abrirModalEdicao(prod)} title="Editar Produto">
                         <FaPen />
                       </button>
-                      <button className="btn-acao-prod remover" onClick={() => removerProduto(prod.id)} title="Excluir Produto">
+                      <button type="button" className="btn-acao-prod remover" onClick={() => removerProduto(prod.id)} title="Excluir Produto">
                         <FaTrash />
                       </button>
                     </td>
@@ -405,7 +413,6 @@ const Estoque = () => {
         </section>
       </main>
 
-      {/* --- MODAL DE EDIÇÃO --- */}
       {modalEdicao && prodEdit && (
         <div className="modal-overlay">
           <div className="modal-edicao">
@@ -421,21 +428,22 @@ const Estoque = () => {
 
             <div className="grid-form modal-grid">
               <div className="campo-form">
-                <label>Nome do Produto:</label>
-                <input type="text" value={prodEdit.nome} onChange={e => setProdEdit({...prodEdit, nome: e.target.value})} />
+                <label htmlFor="editar-nome-produto">Nome do Produto:</label>
+                <input id="editar-nome-produto" type="text" value={prodEdit.nome} onChange={e => setProdEdit({...prodEdit, nome: e.target.value})} />
               </div>
               <div className="campo-form">
-                <label>Nova Quantidade ({prodEdit.unidade}):</label>
+                <label htmlFor="editar-quantidade">Nova Quantidade ({prodEdit.unidade}):</label>
                 <input 
+                  id="editar-quantidade"
                   type="text" 
                   value={prodEdit.qtd} 
                   onChange={e => setProdEdit({...prodEdit, qtd: e.target.value.replace(/[^0-9.,]/g, '')})} 
                 />
               </div>
               <div className="campo-form">
-                {/* Correção para clareza no modal: mostrar que o valor já está rateado */}
-                <label><FaBrazilianRealSign /> Custo de Compra {prodEdit.isLote ? '(Unitário/Rateado):' : 'Atual:'}</label>
+                <label htmlFor="editar-custo-compra"><FaBrazilianRealSign /> Custo de Compra {prodEdit.isLote ? '(Unitário/Rateado):' : 'Atual:'}</label>
                 <input 
+                  id="editar-custo-compra"
                   type="text" 
                   value={prodEdit.vCompra} 
                   onChange={e => setProdEdit({...prodEdit, vCompra: aplicarMascaraDinheiro(e.target.value)})} 
@@ -444,8 +452,9 @@ const Estoque = () => {
               
               {prodEdit.unidade === 'kg' ? (
                 <div className="campo-form">
-                  <label><FaBrazilianRealSign /> Novo Valor de Venda do KG:</label>
+                  <label htmlFor="editar-valor-kg"><FaBrazilianRealSign /> Novo Valor de Venda do KG:</label>
                   <input 
+                    id="editar-valor-kg"
                     type="text" 
                     value={prodEdit.vKG} 
                     onChange={e => setProdEdit({...prodEdit, vKG: aplicarMascaraDinheiro(e.target.value)})} 
@@ -453,8 +462,9 @@ const Estoque = () => {
                 </div>
               ) : (
                 <div className="campo-form">
-                  <label><FaBrazilianRealSign /> Novo Preço de Venda Unitário:</label>
+                  <label htmlFor="editar-valor-venda"><FaBrazilianRealSign /> Novo Preço de Venda Unitário:</label>
                   <input 
+                    id="editar-valor-venda"
                     type="text" 
                     value={prodEdit.vVenda} 
                     onChange={e => setProdEdit({...prodEdit, vVenda: aplicarMascaraDinheiro(e.target.value)})} 
@@ -463,8 +473,8 @@ const Estoque = () => {
               )}
             </div>
             <div className="modal-acoes">
-              <button className="btn-cancelar" onClick={() => setModalEdicao(false)}>Cancelar</button>
-              <button className="btn-salvar-edicao" onClick={salvarEdicao}>Confirmar Alterações</button>
+              <button type="button" className="btn-cancelar" onClick={() => setModalEdicao(false)}>Cancelar</button>
+              <button type="button" className="btn-salvar-edicao" onClick={salvarEdicao}>Confirmar Alterações</button>
             </div>
           </div>
         </div>

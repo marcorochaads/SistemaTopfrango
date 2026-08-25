@@ -1,25 +1,70 @@
-version: '3.8'
-
 services:
+  # ==========================================
+  # INFRAESTRUTURA DE QUALIDADE (WORKSHOP)
+  # ==========================================
+  sonarqube:
+    image: sonarqube:latest
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+
+  
+  # 1. O Broker (Mensageria) - Exigência da Auditoria
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: topfrango_rabbitmq
+    ports:
+      - "5672:5672"   # Porta padrão de comunicação das filas (AMQP)
+      - "15672:15672" # Porta do painel de monitoramento visual
+    restart: always
+
+  # 2. O Produtor de mensagens (Backend)
   backend:
     build: ./Servidor  
     container_name: topfrango_backend
     ports:
       - "5000:5000"
-    # O "volumes" garante que seus dados do SQLite não sumam se o contêiner reiniciar!
     volumes:
       - ./Servidor/topfrango.db:/app/topfrango.db
-      # Se você tiver uma pasta de backups gerada pelo seu cron, mapeie ela também:
-      # - ./Servidor/backups:/app/backups
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq 
+    depends_on:
+      - rabbitmq
     restart: always
 
+  # 3. O Consumidor Assíncrono (Worker)
+  worker:
+    build: ./Servidor
+    command: node worker.js
+    container_name: topfrango_worker
+    volumes:
+      - ./Servidor/topfrango.db:/app/topfrango.db
+    environment:
+      - RABBITMQ_URL=amqp://rabbitmq
+    depends_on:
+      - rabbitmq # Corrigido: movido de environment para depends_on
+    restart: always
+
+  # 4. Interface do Usuário (Frontend)
   frontend:
     build: ./sistema-pdv 
     container_name: topfrango_frontend
     ports:
       - "3000:3000"
-    stdin_open: true # Necessário para o React não fechar no Docker
-    tty: true        # Recomendado usar junto com o stdin_open no React
+    stdin_open: true 
+    tty: true        
     depends_on:
       - backend 
-    restart: always
+    restart: always  
+
+# Declaração dos volumes exigidos pelo SonarQube
+volumes:
+  sonarqube_data:
+  sonarqube_extensions:
+  sonarqube_logs:

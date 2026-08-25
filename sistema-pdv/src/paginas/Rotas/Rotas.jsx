@@ -51,8 +51,9 @@ const RoutingControl = ({ sede, destino, setDistancia }) => {
       show: false, 
       createMarker: () => null, 
     }).on('routesfound', (e) => {
-      if (e.routes && e.routes[0]) {
-        const summary = e.routes[0].summary;
+      const rota = e.routes?.[0];
+      if (rota) {
+        const { summary } = rota;
         setDistancia((summary.totalDistance / 1000).toFixed(2));
       }
     }).addTo(map);
@@ -110,7 +111,7 @@ const Rotas = () => {
     if (!v) return 0;
     if (typeof v === 'number') return v;
     const n = Number(String(v).replace(',', '.'));
-    return isNaN(n) ? 0 : n;
+    return Number.isNaN(n) ? 0 : n;
   };
 
   const carregarPedidos = async () => {
@@ -119,8 +120,8 @@ const Rotas = () => {
       const dados = await response.json();
       
      
-      setPedidosPendentes(dados.filter(p => p.status && p.status.toLowerCase() === 'pendente'));
-      setPedidosEmRota(dados.filter(p => p.status && p.status.toLowerCase() === 'em rota'));
+      setPedidosPendentes(dados.filter(p => p.status?.toLowerCase() === 'pendente'));
+      setPedidosEmRota(dados.filter(p => p.status?.toLowerCase() === 'em rota'));
     } catch (error) {
       console.error("Erro ao buscar pedidos:", error);
     }
@@ -132,7 +133,7 @@ const Rotas = () => {
 
   const handleSelectPedido = (id, tipo) => {
     const listaAtual = tipo === 'pendente' ? pedidosPendentes : pedidosEmRota;
-    const encontrado = listaAtual.find(p => p.id === parseInt(id));
+    const encontrado = listaAtual.find(p => p.id === Number.parseInt(id, 10));
     
     if (!encontrado) return;
 
@@ -143,7 +144,7 @@ const Rotas = () => {
     setTelefone(aplicarMascaraTelefone(telBanco)); 
     
     if (encontrado.lat && encontrado.lng) {
-        setDestino([parseFloat(encontrado.lat), parseFloat(encontrado.lng)]);
+        setDestino([Number.parseFloat(encontrado.lat), Number.parseFloat(encontrado.lng)]);
     } else {
         setDestino(null);
         setDistancia('0.00');
@@ -161,7 +162,7 @@ const Rotas = () => {
       const data = await res.json();
       
       if (data && data.length > 0) {
-        setDestino([parseFloat(data[0].lat), parseFloat(data[0].lon)]);
+        setDestino([Number.parseFloat(data[0].lat), Number.parseFloat(data[0].lon)]);
       } else {
         alert(`Não encontramos a rua "${endereco}" automaticamente.\n\nPor favor, clique no local exato no mapa.`);
       }
@@ -198,6 +199,7 @@ const Rotas = () => {
         carregarPedidos(); 
       }
     } catch (error) {
+      console.error('Erro ao despachar entrega:', error);
       alert("Erro ao conectar com o servidor.");
     }
   };
@@ -210,7 +212,6 @@ const Rotas = () => {
       let valorPix = 0;
       let valorCartao = 0;
 
-      // Conversão segura dos valores
       if (metodoPagamento === 'Múltiplo' && detalhesExtras) {
         valorDinheiro = converterValor(detalhesExtras.Dinheiro);
         valorPix = converterValor(detalhesExtras.PIX);
@@ -248,6 +249,7 @@ const Rotas = () => {
         carregarPedidos(); 
       }
     } catch (error) {
+      console.error('Erro ao finalizar baixa da rota:', error);
       alert("Erro ao conectar com o servidor.");
     }
   };
@@ -263,7 +265,7 @@ const Rotas = () => {
   const MapEvents = () => {
     useMapEvents({
       click(e) { 
-        if(pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'pendente') {
+        if (pedidoSelecionado?.status?.toLowerCase() === 'pendente') {
             setDestino([e.latlng.lat, e.latlng.lng]); 
         }
       },
@@ -272,6 +274,36 @@ const Rotas = () => {
   };
 
   const getNomeCliente = (pedido) => pedido.nome_cliente || pedido.cliente || 'Sem Nome';
+  const statusPedido = pedidoSelecionado?.status?.toLowerCase();
+  const podeEditarEndereco = pedidoSelecionado && statusPedido !== 'em rota';
+  let acaoEntrega = null;
+
+  if (statusPedido === 'pendente') {
+    acaoEntrega = (
+      <button
+        type="button"
+        className="btn-tracar-rota"
+        disabled={!destino}
+        onClick={despacharEntrega}
+        style={{ backgroundColor: '#f39c12' }}
+      >
+        <FaMotorcycle /> Despachar Entrega
+      </button>
+    );
+  }
+
+  if (statusPedido === 'em rota') {
+    acaoEntrega = (
+      <button
+        type="button"
+        className="btn-tracar-rota"
+        onClick={() => setIsModalOpen(true)}
+        style={{ backgroundColor: '#2e7d32' }}
+      >
+        <FaCheckDouble /> Dar Baixa (Motoboy Voltou)
+      </button>
+    );
+  }
 
   return (
     <div className="container-rotas">
@@ -293,7 +325,7 @@ const Rotas = () => {
               <select 
                 className="select-pedido"
                 onChange={(e) => handleSelectPedido(e.target.value, 'pendente')}
-                value={pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'pendente' ? pedidoSelecionado.id : ""}
+                value={statusPedido === 'pendente' ? pedidoSelecionado.id : ""}
               >
                 <option value="" disabled>Escolha para traçar rota...</option>
                 {pedidosPendentes.map(p => (
@@ -309,7 +341,7 @@ const Rotas = () => {
               <select 
                 className="select-pedido"
                 onChange={(e) => handleSelectPedido(e.target.value, 'emRota')}
-                value={pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'em rota' ? pedidoSelecionado.id : ""}
+                value={statusPedido === 'em rota' ? pedidoSelecionado.id : ""}
               >
                 <option value="" disabled>Selecione para ver rota ou dar baixa...</option>
                 {pedidosEmRota.map(p => (
@@ -376,12 +408,13 @@ const Rotas = () => {
                   placeholder="Digite o endereço ou clique no mapa"
                   value={endereco}
                   onChange={(e) => setEndereco(e.target.value)}
-                  disabled={!pedidoSelecionado || (pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'em rota')}
+                  disabled={!podeEditarEndereco}
                   style={{ flex: 1, padding: '10px', borderRadius: '5px', border: '1px solid #ccc' }}
                 />
-                <button 
+                <button
+                  type="button"
                   onClick={buscarEnderecoNoMapa} 
-                  disabled={!pedidoSelecionado || (pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'em rota')}
+                  disabled={!podeEditarEndereco}
                   className="btn-buscar-mapa"
                 >
                   <FaMagnifyingGlass /> 
@@ -400,24 +433,7 @@ const Rotas = () => {
               </div>
             )}
 
-            {pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'pendente' ? (
-                <button 
-                  className="btn-tracar-rota" 
-                  disabled={!destino} 
-                  onClick={despacharEntrega} 
-                  style={{ backgroundColor: '#f39c12' }}
-                >
-                  <FaMotorcycle /> Despachar Entrega
-                </button>
-            ) : pedidoSelecionado && pedidoSelecionado.status.toLowerCase() === 'em rota' ? (
-                <button 
-                  className="btn-tracar-rota" 
-                  onClick={() => setIsModalOpen(true)} 
-                  style={{ backgroundColor: '#2e7d32' }}
-                >
-                  <FaCheckDouble /> Dar Baixa (Motoboy Voltou)
-                </button>
-            ) : null}
+            {acaoEntrega}
             
           </section>
 
